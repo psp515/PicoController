@@ -1,7 +1,7 @@
 import uasyncio
 
-from server.web_server import WebServer
-from controller.strip_controller import StripController
+from configuration.extensions import initialize_configuration
+from web_server.server import WebServer
 from devices.management_button import ManagementButton
 from devices.status_beam import StatusBeam
 from logging.logger import Logger
@@ -20,27 +20,28 @@ async def main():
 
     logger.info('Program Starting!')
 
+    logger.info('Initializing Configuration.')
+    initialize_configuration()
+
     logger.info('Initializing devices.')
     button = ManagementButton()
     led_notifier = StatusBeam(LED_R_PIN, LED_G_PIN, LED_B_PIN)
-    logger.info('Base devices initialized.')
 
-    logger.info('Waiting for mode selection.')
+    logger.info('Initializing device mode.')
     pressed = await button.wait_for_press(1000, 2000)
 
     mode_name = 'Configuration' if pressed else 'Controller'
-    logger.info(f'Selected mode: {mode_name}')
 
     mode = Mode()
 
     if pressed:
         await led_notifier.configuration()
-        # mode = WebServer()
+        mode = WebServer()
     else:
         await led_notifier.success()
         # mode = StripController()
 
-    logger.info('Starting mode.')
+    logger.info(f'Starting: {mode_name}.')
     await mode.start()
 
 if __name__ == '__main__':

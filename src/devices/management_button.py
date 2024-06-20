@@ -1,5 +1,6 @@
 from machine import Pin
 import uasyncio
+import utime
 
 DEFAULT_BUTTON_PIN = 14
 
@@ -26,18 +27,18 @@ class ManagementButton:
         :param max_duration: Maximum duration in milliseconds to wait for the press.
         :return: Boolean indicating if the button was pressed for at least min_duration within max_duration.
         """
-        start_time = uasyncio.ticks_ms()
+        start_time = utime.ticks_ms()
 
-        while uasyncio.ticks_diff(uasyncio.ticks_ms(), start_time) < max_duration:
+        while utime.ticks_diff(utime.ticks_ms(), start_time) < max_duration:
             while not self._pressed():
                 await uasyncio.sleep_ms(10)
-                if uasyncio.ticks_diff(uasyncio.ticks_ms(), start_time) >= max_duration:
+                if utime.ticks_diff(utime.ticks_ms(), start_time) >= max_duration:
                     return False
 
             press_time = uasyncio.ticks_ms()
             while self._pressed():
                 await uasyncio.sleep_ms(10)
-                if uasyncio.ticks_diff(uasyncio.ticks_ms(), press_time) >= min_duration:
+                if uasyncio.ticks_diff(utime.ticks_ms(), press_time) >= min_duration:
                     return True
 
         return False

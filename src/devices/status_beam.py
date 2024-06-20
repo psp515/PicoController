@@ -1,7 +1,7 @@
 from machine import Pin
-from uasyncio import sleep_ms
+from uasyncio import sleep_ms, Lock
 
-DELAY = 500
+DELAY = 200
 LED_R_PIN = 0
 LED_G_PIN = 1
 LED_B_PIN = 2
@@ -22,6 +22,7 @@ class StatusBeam:
             self.blue = Pin(blue_pin, Pin.OUT)
             self._initialized = True
             self._off()
+            self.lock = Lock()
 
     def _off(self):
         """Turns off all colors."""
@@ -37,13 +38,16 @@ class StatusBeam:
         :param green: Boolean indicating if the green LED should be on.
         :param blue: Boolean indicating if the blue LED should be on.
         """
-        self.red.value(red)
-        self.green.value(green)
-        self.blue.value(blue)
 
-        await sleep_ms(DELAY)
-
-        self._off()
+        try:
+            await self.lock.acquire()
+            self.red.value(red)
+            self.green.value(green)
+            self.blue.value(blue)
+            await sleep_ms(DELAY)
+            self._off()
+        finally:
+            self.lock.release()
 
     async def success(self):
         """Blinks the LED color to green."""
