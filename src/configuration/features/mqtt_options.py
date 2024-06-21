@@ -9,7 +9,7 @@ class MqttOptions(BaseOptions):
 
     @property
     def host(self):
-        return self.manager.read_config(self.NAME)["host"]
+        return self.manager.read_config(self.NAME).get("host", "")
 
     @host.setter
     def host(self, value):
@@ -17,7 +17,7 @@ class MqttOptions(BaseOptions):
 
     @property
     def port(self):
-        return self.manager.read_config(self.NAME)["port"]
+        return self.manager.read_config(self.NAME).get("port", "")
 
     @port.setter
     def port(self, value):
@@ -25,7 +25,7 @@ class MqttOptions(BaseOptions):
 
     @property
     def username(self):
-        return self.manager.read_config(self.NAME)["username"]
+        return self.manager.read_config(self.NAME).get("username", "")
 
     @username.setter
     def username(self, value):
@@ -33,7 +33,7 @@ class MqttOptions(BaseOptions):
 
     @property
     def password(self):
-        return self.manager.read_config(self.NAME)["password"]
+        return self.manager.read_config(self.NAME).get("password", "")
 
     @password.setter
     def password(self, value):

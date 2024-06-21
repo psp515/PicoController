@@ -9,7 +9,7 @@ class StripOptions(BaseOptions):
 
     @property
     def length(self):
-        return int(self.manager.read_config(self.NAME)["length"])
+        return int(self.manager.read_config(self.NAME).get("length", 0))
 
     @length.setter
     def length(self, value: int):

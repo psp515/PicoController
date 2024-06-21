@@ -8,10 +8,10 @@ class Logger:
             cls._instance = super(Logger, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, level: str = 'INFO'):
         if not hasattr(self, 'initialized'):
             self.initialized = True
-            self.log_level = 'INFO'
+            self.level = level
             self.log_file = None
 
     def log(self, level, message):
@@ -21,7 +21,7 @@ class Logger:
 
     def _should_log(self, level):
         levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        return levels.index(level) >= levels.index(self.log_level)
+        return levels.index(level) >= levels.index(self.level)
 
     def debug(self, message):
         self.log('DEBUG', message)

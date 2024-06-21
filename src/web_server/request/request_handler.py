@@ -1,5 +1,8 @@
 from logging.logger import Logger
+
+from web_server.request.enums.status_code import StatusCode
 from web_server.request.request import Request
+from web_server.request.response import Response
 
 
 class RequestHandler:
@@ -20,18 +23,44 @@ class RequestHandler:
 
     async def handle_request(self, reader, writer):
         try:
-            raw = await reader.readline()
-            request = Request(raw)
+            first_line = await reader.readline()
+            self.logger.debug(f"Full request: {first_line}")
 
+            if not first_line:
+                raise Exception("Empty request.")
+
+            # Read headers
+            headers = {}
+            while True:
+                line = await reader.readline()
+                if line == b"\r\n":
+                    break
+                header_key, header_value = line.decode().split(":", 1)
+                headers[header_key.strip()] = header_value.strip()
+
+            self.logger.debug(f"Headers: {headers}")
+
+            # Read body if Content-Length header is present
+            body = None
+            if 'Content-Length' in headers:
+                content_length = int(headers['Content-Length'])
+                body = await reader.read(content_length)
+                self.logger.debug(f"Body: {body}")
+
+            request = Request(first_line, headers, body)
             self.logger.info(f"Request path: {request.url}")
-            self.logger.debug(f"Full request: {raw}")
 
             response = await self._get_response(request)
-
-            writer.write(response.encode('utf-8'))
+            self.logger.debug(f"Response prepared.")
+            writer.write(response.first_line)
+            writer.write(response.headers)
+            writer.write(response.body)
         except Exception as e:
             self.logger.error(f"Error handling request: {e}")
-            writer.write("HTTP/1.1 500 Internal Server Error\r\n\r\n".encode('utf-8'))
+
+            writer.write("HTTP/1.1 500 Internal Server Error\r\n")
+            writer.write(" \r\n\n\n")
+            writer.write(self.unhandled_request_response)
         finally:
             await writer.drain()
             await writer.wait_closed()
@@ -51,7 +80,7 @@ class RequestHandler:
     def set_unhandled_request_response(self, response: str):
         self.unhandled_request_response = response
 
-    async def _get_response(self, request: Request):
+    async def _get_response(self, request: Request) -> Response:
 
         if request.method == 'GET':
             return self.gets[request.url](request)
@@ -59,4 +88,4 @@ class RequestHandler:
         if request.method == 'POST':
             return self.posts[request.url](request)
 
-        return self.unhandled_request_response
+        return Response(request.protocol, StatusCode.NOT_FOUND, {}, self.unhandled_request_response)

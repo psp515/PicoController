@@ -1,0 +1,27 @@
+.button {
+    width: 256px;
+    padding: 6px;
+    margin:0px;
+    font-size: 18px;
+    color: #fff;
+    background: linear-gradient(135deg, #0062cc, #004085); /* Gradient for buttons */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    transition: background 0.3s, transform 0.3s; /* Smooth transition for hover effect */
+}
+
+.button:hover {
+    background: linear-gradient(135deg, #004085, #002752); /* Darker gradient on hover */
+    transform: scale(1.05); /* Slight zoom effect on hover */
+}
+
+.back-button {
+    background: linear-gradient(135deg, #444, #222);
+}
+
+.back-button:hover {
+    background: linear-gradient(135deg, #666, #444);
+}

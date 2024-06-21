@@ -9,15 +9,15 @@ class WifiOptions(BaseOptions):
 
     @property
     def ssid(self):
-        return self.manager.read_config(self.NAME)["username"]
+        return self.manager.read_config(self.NAME).get("ssid", "")
 
     @ssid.setter
     def ssid(self, value):
-        self.manager.update_config(self.NAME, "username", value)
+        self.manager.update_config(self.NAME, "ssid", value)
 
     @property
     def password(self):
-        return self.manager.read_config(self.NAME)["password"]
+        return self.manager.read_config(self.NAME).get("password", "")
 
     @password.setter
     def password(self, value):
