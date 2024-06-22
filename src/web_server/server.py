@@ -3,8 +3,9 @@ import network
 from machine import Pin
 
 from mode import Mode
-from web_server.pages.home import get_home_page
+from web_server.pages.home import get_home_page, restart_device
 from web_server.pages.mqtt import get_mqtt_page, post_mqtt_credentials
+from web_server.pages.strip import get_strip_page, post_strip_settings, post_strip_test, post_reset
 from web_server.pages.wifi import get_wifi_page, post_credentials
 from web_server.request.request_handler import RequestHandler
 
@@ -48,10 +49,15 @@ class WebServer(Mode):
     def _initialize_routes(self):
         self.logger.info("Initializing routes.")
         self.handler.map_get('/', get_home_page)
+        self.handler.map_post('/restart', restart_device)
         self.handler.map_get('/wifi', get_wifi_page)
         self.handler.map_post('/wifi', post_credentials)
         self.handler.map_get('/mqtt', get_mqtt_page)
         self.handler.map_post('/mqtt', post_mqtt_credentials)
+        self.handler.map_get('/strip', get_strip_page)
+        self.handler.map_post('/strip', post_strip_settings)
+        self.handler.map_post('/strip/test', post_strip_test)
+        self.handler.map_post('/strip/reset', post_reset)
 
     async def _handle_client(self, reader, writer):
         self.logger.info("Handling request.")
