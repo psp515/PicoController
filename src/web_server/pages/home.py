@@ -1,3 +1,7 @@
+import uasyncio
+from machine import reset
+
+from logging.logger import Logger
 from web_server.request.enums.status_code import StatusCode
 from web_server.request.request import Request
 from web_server.request.response import Response
@@ -13,9 +17,53 @@ def get_home_page(request: Request) -> Response:
     builder.add_body("""    
     <h1>Controller Configuration</h1>
     <div class="container">
-        <a href="/mqtt" class="button">MQTT Configuration</a>
-        <a href="/wifi" class="button">WiFi Credentials</a>
-        <a href="/strip" class="button">Strip Length</a>
+        <button class="button" onclick="gotToMqttPage()">Mqtt Configuration</button>
+        <button class="button" onclick="gotToWiFiPage()">WiFi Credentials</button>
+        <button class="button" onclick="gotToStripPage()">Strip Length</button>
+        <button class="button back-button" onclick="restart()">Restart</button>
     </div>""")
 
+    builder.add_scripts("""
+    function restart() {
+        fetch('/restart', {
+            method: 'POST',
+            body: JSON.stringify({}),
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Restarting...');
+            } else {
+                alert('Failed to restart.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to restart.');
+        });
+    } """)
+    builder.add_scripts("""
+    function gotToMqttPage() {
+        window.location.href = '/mqtt';
+    } """)
+    builder.add_scripts("""
+    function gotToWiFiPage() {
+        window.location.href = '/wifi';
+    } """)
+    builder.add_scripts("""
+    function gotToStripPage() {
+        window.location.href = '/strip';
+    } """)
+
     return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body=builder.build())
+
+
+async def _restart():
+    await uasyncio.sleep(2)
+    reset()
+
+
+def restart_device(request: Request) -> Response:
+    logger = Logger()
+    logger.info("Restarting device.")
+    uasyncio.create_task(_restart())
+    return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body="")
