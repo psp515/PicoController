@@ -40,4 +40,4 @@ class MqttOptions(BaseOptions):
         self.manager.update_config(self.NAME, "password", value)
 
     def empty(self) -> bool:
-        return self.url == "" or self.port == "" or self.username == "" or self.password == ""
+        return self.url == "" and self.port == "" and self.username == "" and self.password == ""

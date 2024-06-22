@@ -1,5 +1,5 @@
-from web_server.request.enums.http_method import HttpMethod
-from web_server.request.exceptions.invalid_http_data import InvalidHttpData
+from configuration_server.request.enums.http_method import HttpMethod
+from configuration_server.request.exceptions.invalid_http_data import InvalidHttpData
 
 
 class Request:
