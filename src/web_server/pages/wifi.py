@@ -25,7 +25,7 @@ def get_wifi_page(request: Request) -> Response:
     """)
 
     options = WifiOptions()
-    if options.ssid and options.password:
+    if not options.empty():
 
         value_script = "window.onload = function() {" + \
                        f"document.getElementById('ssid').value = '{options.ssid}';" + \

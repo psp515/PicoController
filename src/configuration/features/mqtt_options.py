@@ -8,12 +8,12 @@ class MqttOptions(BaseOptions):
         super().__init__()
 
     @property
-    def host(self):
-        return self.manager.read_config(self.NAME).get("host", "")
+    def url(self):
+        return self.manager.read_config(self.NAME).get("url", "")
 
-    @host.setter
-    def host(self, value):
-        self.manager.update_config(self.NAME, "host", value)
+    @url.setter
+    def url(self, value):
+        self.manager.update_config(self.NAME, "url", value)
 
     @property
     def port(self):
@@ -37,4 +37,7 @@ class MqttOptions(BaseOptions):
 
     @password.setter
     def password(self, value):
-        self.manager.update_config("mqtt", "password", value)
+        self.manager.update_config(self.NAME, "password", value)
+
+    def empty(self) -> bool:
+        return self.url == "" or self.port == "" or self.username == "" or self.password == ""

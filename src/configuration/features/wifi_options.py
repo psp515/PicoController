@@ -22,3 +22,6 @@ class WifiOptions(BaseOptions):
     @password.setter
     def password(self, value):
         self.manager.update_config(self.NAME, "password", value)
+
+    def empty(self) -> bool:
+        return self.ssid == "" or self.password == ""

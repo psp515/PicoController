@@ -11,24 +11,19 @@ class Request:
         self._headers = headers
         self._body = body.decode('utf-8') if body else ""
         first_line = first_line.decode('utf-8') if first_line else ""
-        self._parse_request(first_line)
+        self._parse_first_line(first_line)
 
-    def _parse_request(self, raw):
-        if len(raw) == 0:
+    def _parse_first_line(self, first_line):
+        if len(first_line) == 0:
             raise InvalidHttpData("Empty request")
 
         eol_char = '\r\n'
-        if raw.find('\r\n') == -1:
+        if first_line.find('\r\n') == -1:
             eol_char = '\n'
 
-        lines = raw.split(eol_char)
+        lines = first_line.split(eol_char)
 
         self._parse_basic_information(lines[0])
-
-        if len(lines) == 1:
-            return
-
-        # Logic not handled
 
     def _parse_basic_information(self, first_line):
         parts = first_line.split()

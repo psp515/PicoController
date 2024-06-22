@@ -4,6 +4,7 @@ from machine import Pin
 
 from mode import Mode
 from web_server.pages.home import get_home_page
+from web_server.pages.mqtt import get_mqtt_page, post_mqtt_credentials
 from web_server.pages.wifi import get_wifi_page, post_credentials
 from web_server.request.request_handler import RequestHandler
 
@@ -49,6 +50,8 @@ class WebServer(Mode):
         self.handler.map_get('/', get_home_page)
         self.handler.map_get('/wifi', get_wifi_page)
         self.handler.map_post('/wifi', post_credentials)
+        self.handler.map_get('/mqtt', get_mqtt_page)
+        self.handler.map_post('/mqtt', post_mqtt_credentials)
 
     async def _handle_client(self, reader, writer):
         self.logger.info("Handling request.")

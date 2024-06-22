@@ -14,3 +14,6 @@ class StripOptions(BaseOptions):
     @length.setter
     def length(self, value: int):
         self.manager.update_config(self.NAME, "length", str(value))
+
+    def empty(self) -> bool:
+        return False
