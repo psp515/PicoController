@@ -1,6 +1,8 @@
 import uasyncio
+from machine import reset
 
 from configuration.extensions import initialize_configuration
+from controller.strip_controller import StripController
 from devices.strip import Strip
 from configuration_server.configuration_server import ConfigurationServer
 from devices.management_button import ManagementButton
@@ -17,12 +19,11 @@ async def main():
 
     logger.info('Initializing devices.')
     button = ManagementButton()
-    strip = Strip()
     beam = StatusBeam()
+    strip = Strip()
 
     logger.info('Initializing device mode.')
-    #pressed = await button.wait_for_press(1000, 2000)
-    pressed = True
+    pressed = await button.wait_for_press(1000, 2000)
 
     mode_name = 'Configuration' if pressed else 'Controller'
 
@@ -33,7 +34,7 @@ async def main():
         mode = ConfigurationServer()
     else:
         await beam.blink(1)
-        # mode = StripController()
+        mode = StripController()
 
     logger.info(f'Starting: {mode_name}.')
     await mode.start()
@@ -43,3 +44,4 @@ if __name__ == '__main__':
         uasyncio.run(main())
     finally:
         uasyncio.new_event_loop()
+        reset()
