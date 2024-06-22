@@ -53,10 +53,12 @@ class StripController(Mode):
         self.logger.debug(f'IP address: {self._wlan.ifconfig()[0]}')
 
     def _initialize_mqtt(self):
+        self.logger.info('Initializing mqtt.')
         self._client.connect()
         uasyncio.create_task(self._worker.run())
 
     def _initialize_strip(self):
+        self.logger.info('Initializing strip controller.')
         manager = StateManager()
         options = MqttOptions()
         self._client.subscribe(options.topic, manager.handle)
