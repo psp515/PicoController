@@ -26,7 +26,7 @@ class HtmlBuilder:
     def add_scripts(self, script):
         self.scripts.append(script)
 
-    def build(self):
+    def build(self) -> str:
         styles_html = "".join(self.styles)
         scripts_html = "".join(self.scripts)
         body_html = "".join(self.body_content)
