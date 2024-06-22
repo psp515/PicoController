@@ -1,8 +1,8 @@
 from logging.logger import Logger
 
-from web_server.request.enums.status_code import StatusCode
-from web_server.request.request import Request
-from web_server.request.response import Response
+from configuration_server.request.enums.status_code import StatusCode
+from configuration_server.request.request import Request
+from configuration_server.request.response import Response
 
 
 class RequestHandler:

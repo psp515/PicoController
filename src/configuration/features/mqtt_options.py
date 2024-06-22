@@ -39,5 +39,34 @@ class MqttOptions(BaseOptions):
     def password(self, value):
         self.manager.update_config(self.NAME, "password", value)
 
+    @property
+    def client(self):
+        return self.manager.read_config(self.NAME).get("client", "")
+
+    @client.setter
+    def client(self, value):
+        self.manager.update_config(self.NAME, "client", value)
+
+    @property
+    def keep_alive(self):
+        return int(self.manager.read_config(self.NAME).get("keep_alive", 30))
+
+    @keep_alive.setter
+    def keep_alive(self, value: int):
+        self.manager.update_config(self.NAME, "keep_alive", value)
+
+    @property
+    def topic(self):
+        return self.manager.read_config(self.NAME).get("url", "")
+
+    @topic.setter
+    def topic(self, value):
+        self.manager.update_config(self.NAME, "topic", value)
+
     def empty(self) -> bool:
-        return self.url == "" or self.port == "" or self.username == "" or self.password == ""
+        return self.url == "" \
+            and self.port == "" \
+            and self.username == "" \
+            and self.password == "" \
+            and self.client == "" \
+            and self.topic == ""

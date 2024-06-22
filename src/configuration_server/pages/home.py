@@ -2,17 +2,17 @@ import uasyncio
 from machine import reset
 
 from logging.logger import Logger
-from web_server.request.enums.status_code import StatusCode
-from web_server.request.request import Request
-from web_server.request.response import Response
-from web_server.utils.html_builder import HtmlBuilder
+from configuration_server.request.enums.status_code import StatusCode
+from configuration_server.request.request import Request
+from configuration_server.request.response import Response
+from configuration_server.utils.html_builder import HtmlBuilder
 
 
 def get_home_page(request: Request) -> Response:
     builder = HtmlBuilder()
     builder.set_title("Controller Configuration")
-    builder.add_styles("web_server/styles/styles.css")
-    builder.add_styles("web_server/styles/buttons.css")
+    builder.add_styles("configuration_server/styles/styles.css")
+    builder.add_styles("configuration_server/styles/buttons.css")
 
     builder.add_body("""    
     <h1>Controller Configuration</h1>

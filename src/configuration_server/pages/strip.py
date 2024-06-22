@@ -1,25 +1,25 @@
 import json
 
 from configuration.features.strip_options import StripOptions
-from devices.strip import Strip
+from devices.strip import Strip, MAX_PIXELS
+from configuration_server.request.enums.status_code import StatusCode
+from configuration_server.request.request import Request
+from configuration_server.request.response import Response
+from configuration_server.utils.html_builder import HtmlBuilder
 from logging.logger import Logger
-from web_server.request.enums.status_code import StatusCode
-from web_server.request.request import Request
-from web_server.request.response import Response
-from web_server.utils.html_builder import HtmlBuilder
 
 
 def get_strip_page(request: Request) -> Response:
     builder = HtmlBuilder()
     builder.set_title("Strip Configuration")
-    builder.add_styles("web_server/styles/styles.css")
-    builder.add_styles("web_server/styles/buttons.css")
-    builder.add_styles("web_server/styles/inputs.css")
+    builder.add_styles("configuration_server/styles/styles.css")
+    builder.add_styles("configuration_server/styles/buttons.css")
+    builder.add_styles("configuration_server/styles/inputs.css")
 
     builder.add_body("""
     <h1>Strip Configuration</h1>
     <div class="container">
-        <input type="number" id="length" class="input-field" placeholder="Enter Strip Led Count">
+        <input type="number" id="length" class="input-field" placeholder="Enter Strip Led Count" min="1" max="300">
         <button class="button" onclick="testLength()">Test Length</button>
         <button class="button" onclick="sendMqttCredentials()">Save</button>
         <button class="button back-button" onclick="goBack()">Back</button>
@@ -95,7 +95,7 @@ def post_strip_settings(request: Request) -> Response:
 
     length = int(json_body.get('length', ""))
 
-    if length < 0:
+    if 0 > length > MAX_PIXELS:
         return Response(protocol=request.protocol, status_code=StatusCode.BAD_REQUEST, headers={}, body="")
 
     options.length = length
@@ -123,6 +123,7 @@ def post_strip_test(request: Request) -> Response:
     strip.test_length(length)
 
     return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body="")
+
 
 def post_reset(request: Request) -> Response:
     logger = Logger()

@@ -24,8 +24,9 @@ class ConfigurationManager:
             self.directory = directory
             if not dir_exists(self.directory):
                 os.mkdir(self.directory)
-            self.config = {}
-
+            self.config = {
+                "app_settings": 'app_settings.json',
+            }
 
     def add_config(self, name: str):
         """

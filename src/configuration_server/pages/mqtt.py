@@ -1,27 +1,32 @@
 import json
 
 from configuration.features.mqtt_options import MqttOptions
-from web_server.request.enums.status_code import StatusCode
-from web_server.request.request import Request
-from web_server.request.response import Response
-from web_server.utils.html_builder import HtmlBuilder
+from configuration_server.request.enums.status_code import StatusCode
+from configuration_server.request.request import Request
+from configuration_server.request.response import Response
+from configuration_server.utils.html_builder import HtmlBuilder
 
 
 def get_mqtt_page(request: Request) -> Response:
     builder = HtmlBuilder()
     builder.set_title("MQTT Configuration")
-    builder.add_styles("web_server/styles/styles.css")
-    builder.add_styles("web_server/styles/buttons.css")
-    builder.add_styles("web_server/styles/inputs.css")
+    builder.add_styles("configuration_server/styles/styles.css")
+    builder.add_styles("configuration_server/styles/buttons.css")
+    builder.add_styles("configuration_server/styles/inputs.css")
 
     builder.add_body("""
     <h1>MQTT Configuration</h1>
     <div class="container">
         <input type="text" id="url" class="input-field" placeholder="Enter URL">
-        <input type="number" id="port" class="input-field" placeholder="Enter Port">
+        <input type="number" id="port" class="input-field" placeholder="Enter Port" min="1" max="65535">
         <input type="text" id="username" class="input-field" placeholder="Enter Username">
         <input type="password" id="password" class="input-field" placeholder="Enter Password">
-        <button class="button" onclick="sendMqttCredentials()">Save</button>
+        <input type="text" id="client" class="input-field" placeholder="Enter Client Id">
+        <input type="number" id="keep_alive" class="input-field" placeholder="Enter Keep Alive" min="30" max="300">
+        
+        <input type="text" id="topic" class="input-field" placeholder="Enter Device Topic">
+        
+        <button class="button" onclick="sendMqttSettings()">Save</button>
         <button class="button back-button" onclick="goBack()">Back</button>
     </div>
     """)
@@ -33,6 +38,9 @@ def get_mqtt_page(request: Request) -> Response:
                        f"document.getElementById('port').value = '{options.port}';" + \
                        f"document.getElementById('username').value = '{options.username}';" + \
                        f"document.getElementById('password').value = '{options.password}';" + \
+                       f"document.getElementById('client').value = '{options.client}';" + \
+                       f"document.getElementById('keep_alive').value = '{options.keep_alive}';" + \
+                       f"document.getElementById('topic').value = '{options.topic}';" + \
                        "};"
         builder.add_scripts(value_script)
 
@@ -41,18 +49,21 @@ def get_mqtt_page(request: Request) -> Response:
         window.location.href = '/';
     }""")
     builder.add_scripts("""
-    function sendMqttCredentials() {
+    function sendMqttSettings() {
         const url = document.getElementById('url').value;
         const port = document.getElementById('port').value;
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
+        const client = document.getElementById('client').value;
+        const keep_alive = document.getElementById('keep_alive').value;
+        const topic = document.getElementById('topic').value;
 
         fetch('/mqtt', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url, port, username, password }),
+            body: JSON.stringify({ url, port, username, password, topic, keep_alive, client }),
         })
         .then(response => {
             if (response.ok) {
@@ -70,7 +81,7 @@ def get_mqtt_page(request: Request) -> Response:
     return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body=builder.build())
 
 
-def post_mqtt_credentials(request: Request) -> Response:
+def post_mqtt_settings(request: Request) -> Response:
     content_type = request.headers.get('Content-Type', "")
 
     if content_type != 'application/json':
@@ -80,16 +91,28 @@ def post_mqtt_credentials(request: Request) -> Response:
     json_body = json.loads(request.body)
 
     url = json_body.get('url', "")
-    port = json_body.get('port', "")
+    port = int(json_body.get('port', 0))
     username = json_body.get('username', "")
     password = json_body.get('password', "")
+    client = json_body.get('client', "")
+    keep_alive = int(json_body.get('keep_alive', 0))
+    topic = json_body.get('topic', "")
 
-    if url == "" or port == "" or username == "" or password == "":
+    if url == "" \
+            or username == "" \
+            or password == "" \
+            or client == ""\
+            or topic == "" \
+            or port <= 0 or port >= 65536 \
+            or keep_alive < 30 or keep_alive > 300:
         return Response(protocol=request.protocol, status_code=StatusCode.BAD_REQUEST, headers={}, body="")
 
     options.url = url
     options.port = port
     options.username = username
     options.password = password
+    options.client = client
+    options.keep_alive = keep_alive
+    options.topic = topic
 
     return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body="")
