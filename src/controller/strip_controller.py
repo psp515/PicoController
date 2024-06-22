@@ -1,7 +1,12 @@
 import network
 import uasyncio
 
+from configuration.features.mqtt_options import MqttOptions
 from configuration.features.wifi_options import WifiOptions
+from controller.mqtt.mqtt_client import MqttClient
+from controller.mqtt.mqtt_worker import MqttWorker
+from controller.state_manager import StateManager
+from controller.strip.strip_worker import StripWorker
 from utils.heartbeat import Heartbeat
 from machine import reset
 
@@ -14,12 +19,14 @@ class StripController(Mode):
         super().__init__()
         self._heartbeat = Heartbeat()
         self._wlan = network.WLAN(network.STA_IF)
+        self._worker = MqttWorker()
+        self._client = MqttClient()
 
     async def start(self):
         try:
             await self._initialize_wifi()
-            await self._initialize_mqtt()
-            await self._initialize_strip()
+            self._initialize_mqtt()
+            self._initialize_strip()
         except Exception as e:
             self.logger.error(f'Error when initializing led controller. Exception: {e}')
             reset()
@@ -45,8 +52,13 @@ class StripController(Mode):
         self.logger.info('Connected to wifi.')
         self.logger.debug(f'IP address: {self._wlan.ifconfig()[0]}')
 
-    async def _initialize_mqtt(self):
-        pass
+    def _initialize_mqtt(self):
+        self._client.connect()
+        uasyncio.create_task(self._worker.run())
 
-    async def _initialize_strip(self):
-        pass
+    def _initialize_strip(self):
+        manager = StateManager()
+        options = MqttOptions()
+        self._client.subscribe(options.topic, manager.handle)
+        worker = StripWorker()
+        uasyncio.create_task(worker.run())

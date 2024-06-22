@@ -5,7 +5,7 @@ from machine import Pin
 from mode import Mode
 from utils.heartbeat import Heartbeat
 from configuration_server.pages.home import get_home_page, restart_device
-from configuration_server.pages.mqtt import get_mqtt_page, post_mqtt_credentials
+from configuration_server.pages.mqtt import get_mqtt_page, post_mqtt_settings
 from configuration_server.pages.strip import get_strip_page, post_strip_settings, post_strip_test, post_reset
 from configuration_server.pages.wifi import get_wifi_page, post_credentials
 from configuration_server.request.request_handler import RequestHandler
@@ -49,7 +49,7 @@ class ConfigurationServer(Mode):
         self.handler.map_get('/wifi', get_wifi_page)
         self.handler.map_post('/wifi', post_credentials)
         self.handler.map_get('/mqtt', get_mqtt_page)
-        self.handler.map_post('/mqtt', post_mqtt_credentials)
+        self.handler.map_post('/mqtt', post_mqtt_settings)
         self.handler.map_get('/strip', get_strip_page)
         self.handler.map_post('/strip', post_strip_settings)
         self.handler.map_post('/strip/test', post_strip_test)
