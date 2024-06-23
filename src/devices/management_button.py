@@ -30,23 +30,24 @@ class ManagementButton:
         start_time = utime.ticks_ms()
 
         while utime.ticks_diff(utime.ticks_ms(), start_time) < max_duration:
-            while not self._pressed():
+            while not self.pressed():
                 await uasyncio.sleep_ms(10)
                 if utime.ticks_diff(utime.ticks_ms(), start_time) >= max_duration:
                     return False
 
             press_time = utime.ticks_ms()
-            while self._pressed():
+            while self.pressed():
                 await uasyncio.sleep_ms(10)
                 if uasyncio.ticks_diff(utime.ticks_ms(), press_time) >= min_duration:
                     return True
 
         return False
 
-    def _pressed(self):
+    def pressed(self):
         """
         Checks if the button is currently pressed.
 
         :return: Boolean indicating if the button is pressed.
         """
         return not self.pin.value()
+

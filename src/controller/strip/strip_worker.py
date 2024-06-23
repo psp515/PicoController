@@ -2,8 +2,10 @@ import uasyncio
 
 from configuration.features.mqtt_options import MqttOptions
 from controller.mqtt.mqtt_client import MqttClient
-from controller.state_manager import StateManager
+from controller.state_manager import StateManager, State
 from controller.strip.modes.off import Off
+from controller.strip.modes.static import Static
+from controller.strip.modes.static_white import StaticWhite
 from controller.worker import Worker
 from devices.strip import Strip
 
@@ -13,8 +15,7 @@ class StripWorker(Worker):
         super().__init__()
         self._strip = Strip()
         self._state_manager = StateManager()
-        self._last_state = self._state_manager.get_state()
-        self._off_mode = Off()
+        self._last_state = State(False, 1, 0, {})
         self._mode = None
         self._mqtt_options = MqttOptions()
         self._mqtt_client = MqttClient()
@@ -22,13 +23,15 @@ class StripWorker(Worker):
         if self._strip.length < 1:
             raise ValueError("Strip length is less than 1 led.")
 
+        self.logger.debug(f"Current state: {self._last_state.working}")
+
     async def run(self):
         self.logger.info("Starting strip worker.")
-        mode = None
+
         while True:
             if self._state_manager.updated():
                 self.logger.debug("New state for controller.")
-                state = self._state_manager.get_state()
+                state = await self._state_manager.get_state()
                 self._update_state()
                 self._last_state = state
 
@@ -39,16 +42,35 @@ class StripWorker(Worker):
     def _update_state(self):
 
         if self.turned_on():
-            pass
+            return
 
         if self.turned_off():
-            pass
+            await self._stop_mode()
+            self._start_mode(0)
+            return
 
         if self.mode_changed():
-            pass
+            mode_to_start = self._state_manager.mode
+            self._start_mode(mode_to_start)
+            return
 
-    async def _stop_animation(self):
+    def _start_mode(self, mode: int):
+        task = None
+
+        if mode == 0:
+            task = Off()
+        elif mode == 1:
+            task = StaticWhite()
+        else:
+            task = Static()
+
+        self._mode = uasyncio.create_task(task.run())
+
+    async def _stop_mode(self):
         if self._mode is None:
+            return
+
+        if self._mode.done():
             return
 
         try:

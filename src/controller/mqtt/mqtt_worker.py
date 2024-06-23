@@ -1,5 +1,6 @@
-from controller.mqtt.mqtt_client import MqttClient
+import uasyncio
 
+from controller.mqtt.mqtt_client import MqttClient
 from controller.worker import Worker
 
 
@@ -11,9 +12,10 @@ class MqttWorker(Worker):
     async def run(self):
         self.logger.info("Starting mqtt worker.")
         while True:
-            self.logger.debug("Waiting for message.")
-            self._client.get_message()
-
-            if not self._client.is_connected():
-                self.logger.error("Mqtt client is not connected. Reconnecting.")
+            try:
+                self._client.get_message()
+                await uasyncio.sleep_ms(100)
+            except Exception as e:
+                self.logger.error(f"Error in mqtt worker. Exception: {e}")
                 self._client.reconnect()
+                await uasyncio.sleep(100)

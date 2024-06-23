@@ -18,6 +18,7 @@ class MqttClient:
             self.initialized = True
             self._options = MqttOptions()
             self._callbacks = {}
+            self.should_reconnect = False
 
             if self._options.empty():
                 raise ValueError("MQTT options are not set.")
@@ -47,8 +48,8 @@ class MqttClient:
                 return
 
             function = self._callbacks[topic]
-            function(data)
 
+            function(data)
         except Exception as e:
             self.logger.error(f"Error when processing topic: {topic}.")
             self.logger.debug(f"Error: {e}")
@@ -58,22 +59,26 @@ class MqttClient:
         self.logger.info("Connected to MQTT broker.")
 
     def reconnect(self):
-        # Clean session is set to False to keep the subscriptions
-        self.logger.debug("Trying to reconnect to MQTT broker.")
-        self.connect(clean_session=False)
 
-    def is_connected(self):
-        return self._client.is_connected()
+        if self.should_reconnect:
+            # Clean session is set to False to keep the subscriptions
+            self.logger.debug("Trying to reconnect to MQTT broker.")
+            self.connect(clean_session=False)
 
     def publish(self, topic: str, message: str):
-        encoded_topic = topic.encode('utf-8')
-        encoded_message = message.encode('utf-8')
-        self._client.publish(encoded_topic, encoded_message)
-        self.logger.debug(f"Published on topic: {topic} message: {message}")
+        try:
+            encoded_topic = topic.encode('utf-8')
+            encoded_message = message.encode('utf-8')
+            self._client.publish(encoded_topic, encoded_message)
+            self.logger.debug(f"Published on topic: {topic} message: {message}")
+        except Exception as e:
+            self.logger.error(f"Error when publishing on topic: {topic}.")
+            self.logger.debug(f"Error: {e}")
+            self.should_reconnect = True
 
     def subscribe(self, topic: str, callback):
         self._client.subscribe(topic)
         self._callbacks[topic] = callback
 
     def get_message(self):
-        return self._client.wait_msg()
+        return self._client.check_msg()

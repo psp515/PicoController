@@ -28,6 +28,9 @@ class Static(Mode):
         return self._include_brightness(color, self.state_manager.brightness)
 
     def animate_to_color(self, target_color, steps=64):
+        # brightness is already applied to the color
+        # we just need to transform from color to color
+        # TODO: we might make it more iterative so when color changes again break loop and start new animation
         for step in range(steps):
             for i in range(self.strip.length):
                 current_color = self.strip.neopixel[i]

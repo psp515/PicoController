@@ -15,27 +15,32 @@ class ButtonWorker(Worker):
 
     async def run(self):
         while True:
-            if await self.button.wait_for_press():
+            initial = self.button.pressed()
+            if initial:
+                self.logger.debug("Button pressed.")
                 count = 0
                 pressed = True
-                while pressed:
+                while pressed and count < 50:
                     count += 1
-                    pressed = await self.button.wait_for_press()
+                    pressed = self.button.pressed()
                     await uasyncio.sleep_ms(100)
 
-                self._handle_press(count)
+                await self._handle_press(count)
 
-            await uasyncio.sleep_ms(100)
+            await uasyncio.sleep_ms(10)
 
-    def _handle_press(self, count: int):
-        if count < 5:
+    async def _handle_press(self, count: int):
+        self.logger.debug(f"Button pressed for {count} times.")
+        if count < 2:
             return
 
         if count < 10:
-            self.state_manager.toggle_working()
+            self.logger.debug("Toogle leds.")
+            await self.state_manager.toggle_working()
 
         if count < 25:
             return
 
         if count < 40:
             reset()
+
