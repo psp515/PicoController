@@ -3,10 +3,12 @@ import uasyncio
 
 from configuration.features.mqtt_options import MqttOptions
 from configuration.features.wifi_options import WifiOptions
+from controller.button.button_worker import ButtonWorker
 from controller.mqtt.mqtt_client import MqttClient
 from controller.mqtt.mqtt_worker import MqttWorker
 from controller.state_manager import StateManager
 from controller.strip.strip_worker import StripWorker
+from devices.strip import Strip
 from utils.heartbeat import Heartbeat
 from machine import reset
 
@@ -26,6 +28,7 @@ class StripController(Mode):
         try:
             await self._initialize_wifi()
             self._initialize_mqtt()
+            self._initialize_button()
             self._initialize_strip()
         except Exception as e:
             self.logger.error(f'Error when initializing led controller. Exception: {e}')
@@ -53,12 +56,14 @@ class StripController(Mode):
         self.logger.debug(f'IP address: {self._wlan.ifconfig()[0]}')
 
     def _initialize_mqtt(self):
-        self.logger.info('Initializing mqtt.')
+        self.logger.info('Initializing mqtt observer.')
         self._client.connect()
         uasyncio.create_task(self._worker.run())
 
     def _initialize_button(self):
-        pass # TODO
+        self.logger.info('Initializing button observer.')
+        worker = ButtonWorker()
+        uasyncio.create_task(worker.run())
 
     def _initialize_strip(self):
         self.logger.info('Initializing strip controller.')
@@ -67,3 +72,7 @@ class StripController(Mode):
         self._client.subscribe(options.topic, manager.handle)
         worker = StripWorker()
         uasyncio.create_task(worker.run())
+
+        self.logger.debug("Clearing strip colors.")
+        strip = Strip()
+        strip.reset()

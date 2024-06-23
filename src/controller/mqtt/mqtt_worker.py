@@ -13,3 +13,7 @@ class MqttWorker(Worker):
         while True:
             self.logger.debug("Waiting for message.")
             self._client.get_message()
+
+            if not self._client.is_connected():
+                self.logger.error("Mqtt client is not connected. Reconnecting.")
+                self._client.reconnect()
