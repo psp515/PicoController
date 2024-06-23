@@ -17,7 +17,9 @@ def get_wifi_page(request: Request) -> Response:
     builder.add_body("""
     <h1>WiFi Configuration</h1>
     <div class="container">
+        <label for="ssid" class="input-label">SSID (WiFi Network Name)</label>
         <input type="text" id="ssid" class="input-field" placeholder="Enter SSID">
+        <label for="password" class="input-label">Password</label>
         <input type="password" id="password" class="input-field" placeholder="Enter Password">
         <button class="button" onclick="sendWifiCredentials()">Save</button>
         <button class="button back-button" onclick="goBack()">Back</a>
@@ -82,7 +84,7 @@ def post_credentials(request: Request) -> Response:
     if ssid == "" or password == "" or len(ssid) > 32 or len(password) > 64:
         return Response(protocol=request.protocol, status_code=StatusCode.BAD_REQUEST, headers={}, body="")
 
-    options.ssid = ssid
-    options.password = password
+    options.ssid = ssid.strip()
+    options.password = password.strip()
 
     return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body="")

@@ -19,6 +19,7 @@ def get_strip_page(request: Request) -> Response:
     builder.add_body("""
     <h1>Strip Configuration</h1>
     <div class="container">
+        <label for="length" class="input-label">Number of neopixel leds</label>
         <input type="number" id="length" class="input-field" placeholder="Enter Strip Led Count" min="1" max="300">
         <button class="button" onclick="testLength()">Test Length</button>
         <button class="button" onclick="sendMqttCredentials()">Save</button>

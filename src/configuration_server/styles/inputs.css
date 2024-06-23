@@ -10,3 +10,10 @@
     background: #333;
     color: #fff;
 }
+
+.input-label {
+    display: block;
+    text-align: left;
+    margin: 0 auto;
+    width: 80%; /* Adjust this width as needed */
+}

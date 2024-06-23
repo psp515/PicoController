@@ -40,6 +40,11 @@ class StripController(Mode):
         self.logger.info('Initializing wifi connection.')
         options = WifiOptions()
         self._wlan.active(True)
+        await uasyncio.sleep_ms(150)
+
+        self._list_netowrks()
+
+        self.logger.debug(f"Trying to connect to: {options.ssid} with password: {options.password}")
         self._wlan.connect(options.ssid, options.password)
 
         i = 0
@@ -76,3 +81,14 @@ class StripController(Mode):
         self.logger.debug("Clearing strip colors.")
         strip = Strip()
         strip.reset()
+
+    def _list_netowrks(self):
+        networks = self._wlan.scan()
+
+        for wlan in networks:
+            self.logger.debug("SSID: {}".format(wlan[0].decode('utf-8')))
+            self.logger.debug("BSSID: {}".format(':'.join(['%02x' % b for b in wlan[1]])))
+            self.logger.debug("Channel: {}".format(wlan[2]))
+            self.logger.debug("RSSI: {}".format(wlan[3]))
+            self.logger.debug("Authmode: {}".format(wlan[4]))
+            self.logger.debug("Hidden: {}".format(wlan[5]))
