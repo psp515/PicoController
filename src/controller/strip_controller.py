@@ -57,6 +57,9 @@ class StripController(Mode):
         self._client.connect()
         uasyncio.create_task(self._worker.run())
 
+    def _initialize_button(self):
+        pass # TODO
+
     def _initialize_strip(self):
         self.logger.info('Initializing strip controller.')
         manager = StateManager()

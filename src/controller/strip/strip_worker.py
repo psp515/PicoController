@@ -13,5 +13,8 @@ class StripWorker(Worker):
 
     async def run(self):
         self.logger.info("Starting strip worker.")
+
+        # TODO
+
         while True:
             await uasyncio.sleep_ms(10)

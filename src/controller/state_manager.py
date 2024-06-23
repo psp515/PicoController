@@ -1,4 +1,5 @@
 import json
+import uasyncio
 
 
 class StateManager:
@@ -17,6 +18,7 @@ class StateManager:
             self._mode_data = {}
             self._working = False
             self._updated = False
+            self._lock = uasyncio.Lock()
 
     @property
     def brightness(self):
@@ -30,37 +32,50 @@ class StateManager:
     def working(self):
         return self._working
 
+    def toggle_working(self):
+        self._lock.acquire()
+        try:
+            self._working = True if not self._working else False
+            self._updated = True
+        finally:
+            self._lock.release()
+
     def updated(self) -> bool:
         return self._updated
 
     def handle(self, payload: str):
-        data = json.loads(payload)
+        self._lock.acquire()
+        try:
+            data = json.loads(payload)
 
-        if 'brightness' in data:
-            brightness = data['brightness']
-            if isinstance(brightness, float) and 0.01 <= brightness <= 1.0:
-                self._brightness = brightness
-            else:
-                raise ValueError("Brightness must be a float between 0.01 and 1.0")
+            if 'brightness' in data:
+                brightness = data['brightness']
+                if isinstance(brightness, float) and 0.01 <= brightness <= 1.0:
+                    self._brightness = brightness
+                    self._updated = True
+                else:
+                    raise ValueError("Brightness must be a float between 0.01 and 1.0")
 
-        if 'mode' in data:
-            mode = data['mode']
-            if isinstance(mode, int) and 0 <= mode <= 10:
-                self._mode = mode
-            else:
-                raise ValueError("Mode must be an integer between 1 and 10")
+            if 'mode' in data:
+                mode = data['mode']
+                if isinstance(mode, int) and 0 <= mode <= 10:
+                    self._mode = mode
+                    self._updated = True
+                else:
+                    raise ValueError("Mode must be an integer between 1 and 10")
 
-        if 'working' in data:
-            is_working = data['working']
-            if isinstance(is_working, bool):
-                self._working = is_working
-            else:
-                raise ValueError("working must be a boolean")
+            if 'working' in data:
+                is_working = data['working']
+                if isinstance(is_working, bool):
+                    self._working = is_working
+                    self._updated = True
+                else:
+                    raise ValueError("working must be a boolean")
 
-        if 'mode_data' in data:
-            self._mode_data = data['mode_data']
-
-        self._updated = True
+            if 'mode_data' in data:
+                self._mode_data = data['mode_data']
+        finally:
+            self._lock.release()
 
     def get_state(self) -> {}:
         return {
@@ -68,3 +83,4 @@ class StateManager:
             'mode': self._mode,
             'working': self._working
         }
+
