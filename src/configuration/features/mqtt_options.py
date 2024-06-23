@@ -57,7 +57,7 @@ class MqttOptions(BaseOptions):
 
     @property
     def topic(self):
-        return self.manager.read_config(self.NAME).get("url", "")
+        return self.manager.read_config(self.NAME).get("topic", "")
 
     @topic.setter
     def topic(self, value):

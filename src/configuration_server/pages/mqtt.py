@@ -107,12 +107,12 @@ def post_mqtt_settings(request: Request) -> Response:
             or keep_alive < 30 or keep_alive > 300:
         return Response(protocol=request.protocol, status_code=StatusCode.BAD_REQUEST, headers={}, body="")
 
-    options.url = url
+    options.url = url.strip()
     options.port = port
-    options.username = username
-    options.password = password
-    options.client = client
+    options.username = username.strip()
+    options.password = password.strip()
+    options.client = client.strip()
     options.keep_alive = keep_alive
-    options.topic = topic
+    options.topic = topic.strip()
 
     return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body="")

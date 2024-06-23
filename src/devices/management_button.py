@@ -35,7 +35,7 @@ class ManagementButton:
                 if utime.ticks_diff(utime.ticks_ms(), start_time) >= max_duration:
                     return False
 
-            press_time = uasyncio.ticks_ms()
+            press_time = utime.ticks_ms()
             while self._pressed():
                 await uasyncio.sleep_ms(10)
                 if uasyncio.ticks_diff(utime.ticks_ms(), press_time) >= min_duration:
@@ -50,5 +50,3 @@ class ManagementButton:
         :return: Boolean indicating if the button is pressed.
         """
         return not self.pin.value()
-
-

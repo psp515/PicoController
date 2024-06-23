@@ -20,7 +20,11 @@ class Strip:
             self._initialized = True
 
         self.length = StripOptions().length
-        self.neopixel = neopixel.NeoPixel(self.pin, self.length)
+        self._neopixel = neopixel.NeoPixel(self.pin, self.length)
+
+    @property
+    def neopixel(self):
+        return self._neopixel
 
     def test_length(self, length: int):
         if length > MAX_PIXELS:
