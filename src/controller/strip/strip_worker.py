@@ -31,13 +31,15 @@ class StripWorker(Worker):
         while True:
             if self._state_manager.updated():
                 self.logger.debug("New state for controller.")
+                # TODO: Not turingn off leds when working is False
+                # and not turing on
                 state = await self._state_manager.get_state()
                 self._update_state()
                 self._last_state = state
 
                 self._mqtt_client.publish(self._mqtt_options.topic, state.json_dump())
 
-            await uasyncio.sleep_ms(15)
+            await uasyncio.sleep_ms(40)
 
     def _update_state(self):
 
