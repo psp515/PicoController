@@ -21,6 +21,7 @@ async def main():
     button = ManagementButton()
     beam = StatusBeam()
     strip = Strip()
+    strip.reset()
 
     logger.info('Initializing device mode.')
     pressed = await button.wait_for_press()
