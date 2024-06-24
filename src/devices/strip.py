@@ -1,5 +1,6 @@
-from machine import Pin
 import neopixel
+
+from machine import Pin
 from configuration.features.strip_options import StripOptions
 
 NEOPIXEL_PIN = 15
@@ -18,9 +19,8 @@ class Strip:
         if not getattr(self, '_initialized', False):
             self.pin = Pin(pin, Pin.OUT)
             self._initialized = True
-
-        self.length = StripOptions().length
-        self._neopixel = neopixel.NeoPixel(self.pin, self.length)
+            self.length = StripOptions().length
+            self._neopixel = neopixel.NeoPixel(self.pin, self.length)
 
     @property
     def neopixel(self):

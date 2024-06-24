@@ -7,7 +7,7 @@ from devices.strip import Strip
 from configuration_server.configuration_server import ConfigurationServer
 from devices.management_button import ManagementButton
 from devices.status_beam import StatusBeam
-from logging.logger import Logger
+from utils.logger import Logger
 from mode import Mode
 
 
@@ -21,9 +21,10 @@ async def main():
     button = ManagementButton()
     beam = StatusBeam()
     strip = Strip()
+    strip.reset()
 
     logger.info('Initializing device mode.')
-    pressed = await button.wait_for_press(1000, 2000)
+    pressed = await button.wait_for_press()
 
     mode_name = 'Configuration' if pressed else 'Controller'
 

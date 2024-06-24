@@ -1,3 +1,4 @@
+import gc
 
 
 class Logger:
@@ -11,17 +12,19 @@ class Logger:
     def __init__(self, level: str = 'INFO'):
         if not hasattr(self, 'initialized'):
             self.initialized = True
-            self.level = level
-            self.log_file = None
+            self._level = level
 
     def log(self, level, message):
         if self._should_log(level):
             log_message = f"[{level}] {message}"
             print(log_message)
 
-    def _should_log(self, level):
+    def _should_log(self, level) -> bool:
         levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        return levels.index(level) >= levels.index(self.level)
+        return levels.index(level) >= levels.index(self._level)
+
+    def is_debug(self) -> bool:
+        return self._should_log('DEBUG')
 
     def debug(self, message):
         self.log('DEBUG', message)
@@ -37,3 +40,6 @@ class Logger:
 
     def critical(self, message):
         self.log('CRITICAL', message)
+        free_memory = gc.mem_free()
+        allocated_memory = gc.mem_alloc()
+        self.log('CRITICAL', f"Free memory: {free_memory} bytes, Allocated memory: {allocated_memory} bytes.")

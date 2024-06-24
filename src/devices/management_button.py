@@ -18,35 +18,30 @@ class ManagementButton:
             self.pin = Pin(pin_number, Pin.IN, Pin.PULL_UP if pull_up else None)
             self.initialized = True
 
-    async def wait_for_press(self, min_duration: int = 500, max_duration: int = 3000):
+    async def wait_for_press(self, max_duration: int = 2000):
         """
         Waits for the button to be pressed for at least the specified minimum duration,
         but not more than the maximum duration.
 
-        :param min_duration: Minimum duration in milliseconds the button must be pressed.
         :param max_duration: Maximum duration in milliseconds to wait for the press.
         :return: Boolean indicating if the button was pressed for at least min_duration within max_duration.
         """
         start_time = utime.ticks_ms()
 
         while utime.ticks_diff(utime.ticks_ms(), start_time) < max_duration:
-            while not self._pressed():
-                await uasyncio.sleep_ms(10)
-                if utime.ticks_diff(utime.ticks_ms(), start_time) >= max_duration:
-                    return False
 
-            press_time = utime.ticks_ms()
-            while self._pressed():
-                await uasyncio.sleep_ms(10)
-                if uasyncio.ticks_diff(utime.ticks_ms(), press_time) >= min_duration:
-                    return True
+            if self.pressed():
+                return True
+
+            await uasyncio.sleep(1)
 
         return False
 
-    def _pressed(self):
+    def pressed(self):
         """
         Checks if the button is currently pressed.
 
         :return: Boolean indicating if the button is pressed.
         """
         return not self.pin.value()
+

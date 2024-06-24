@@ -1,7 +1,7 @@
 import uasyncio
 
 from devices.status_beam import StatusBeam
-from logging.logger import Logger
+from utils.logger import Logger
 
 
 HEARTBEAT_DELAY = 11

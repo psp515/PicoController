@@ -17,13 +17,19 @@ def get_mqtt_page(request: Request) -> Response:
     builder.add_body("""
     <h1>MQTT Configuration</h1>
     <div class="container">
+        <label for="url" class="input-label">Server url:</label>
         <input type="text" id="url" class="input-field" placeholder="Enter URL">
+        <label for="port" class="input-label">Port</label>
         <input type="number" id="port" class="input-field" placeholder="Enter Port" min="1" max="65535">
+        <label for="username" class="input-label">Username</label>
         <input type="text" id="username" class="input-field" placeholder="Enter Username">
+        <label for="password" class="input-label">Password</label>
         <input type="password" id="password" class="input-field" placeholder="Enter Password">
+        <label for="client" class="input-label">Client Name (not used currently)</label>
         <input type="text" id="client" class="input-field" placeholder="Enter Client Id">
+        <label for="keep_alive" class="input-label">Keep Alive</label>
         <input type="number" id="keep_alive" class="input-field" placeholder="Enter Keep Alive" min="30" max="300">
-        
+        <label for="topic" class="input-label">Topic</label>
         <input type="text" id="topic" class="input-field" placeholder="Enter Device Topic">
         
         <button class="button" onclick="sendMqttSettings()">Save</button>

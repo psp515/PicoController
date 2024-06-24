@@ -1,11 +1,11 @@
 import json
 import uasyncio
 
-from logging.logger import Logger
+from utils.logger import Logger
 
 
 class State:
-    def __init__(self, working, brightness, mode, mode_data):
+    def __init__(self, working: bool, brightness: float, mode: int, mode_data: {}):
         self.working = working
         self.brightness = brightness
         self.mode = mode
@@ -36,7 +36,7 @@ class StateManager:
             self.initialized = True
 
             self._brightness = 1.0
-            self._mode = 0
+            self._mode = 1
             self._mode_data = {}
             self._working = False
 
@@ -67,20 +67,23 @@ class StateManager:
     def mode_data(self) -> {}:
         return self._mode_data
 
-    def toggle_working(self):
-        self._lock.acquire()
+    async def toggle_working(self):
         try:
+            await self._lock.acquire()
             self._working = True if not self._working else False
             self._updated = True
+        except Exception as e:
+            self._logger.error(f"Error when toggling working state. Exception: {e}")
         finally:
             self._lock.release()
 
     def updated(self) -> bool:
         return self._updated
 
-    def handle(self, payload: str):
-        self._lock.acquire()
+    async def handle(self, topic: str, payload: str):
+        self._logger.debug(f"Handling state data: {payload}")
         try:
+            await self._lock.acquire()
             data = json.loads(payload)
 
             if 'working' in data:
@@ -127,10 +130,12 @@ class StateManager:
         finally:
             self._lock.release()
 
-    def get_state(self):
-        self._lock.acquire()
+    async def get_state(self):
         try:
+            await self._lock.acquire()
             self._updated = False
             return State(self._working, self._brightness, self._mode, self._mode_data)
+        except Exception as e:
+            self._logger.error(f"Error when getting state. Exception: {e}")
         finally:
             self._lock.release()
