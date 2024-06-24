@@ -1,4 +1,5 @@
 import uasyncio
+import sys
 
 from controller.state_manager import StateManager, State
 from controller.strip.modes.off import Off
@@ -35,6 +36,7 @@ class StripWorker(Worker):
                 await uasyncio.sleep_ms(40)
         except Exception as e:
             self.logger.debug(f"Error in strip worker: {e}")
+            sys.print_exception(exc)
 
     async def _update_state(self):
         if self.turned_on():
@@ -87,3 +89,4 @@ class StripWorker(Worker):
 
     def mode_changed(self):
         return self._state_manager.mode != self._last_state.mode
+
