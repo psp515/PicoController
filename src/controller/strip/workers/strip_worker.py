@@ -1,12 +1,10 @@
 import uasyncio
 
-from configuration.features.mqtt_options import MqttOptions
-from controller.mqtt.mqtt_client import MqttClient
 from controller.state_manager import StateManager, State
 from controller.strip.modes.off import Off
 from controller.strip.modes.static import Static
 from controller.strip.modes.static_white import StaticWhite
-from controller.worker import Worker
+from controller.interfaces.worker import Worker
 from devices.strip import Strip
 
 
@@ -17,8 +15,6 @@ class StripWorker(Worker):
         self._state_manager = StateManager()
         self._last_state = State(False, 1, 0, {})
         self._mode = None
-        self._mqtt_options = MqttOptions()
-        self._mqtt_client = MqttClient()
 
         if self._strip.length < 1:
             raise ValueError("Strip length is less than 1 led.")
@@ -31,19 +27,17 @@ class StripWorker(Worker):
         while True:
             if self._state_manager.updated():
                 self.logger.debug("New state for controller.")
-                # TODO: Not turingn off leds when working is False
-                # and not turing on
                 state = await self._state_manager.get_state()
-                self._update_state()
+                await self._update_state()
                 self._last_state = state
-
-                self._mqtt_client.publish(self._mqtt_options.topic, state.json_dump())
 
             await uasyncio.sleep_ms(40)
 
-    def _update_state(self):
-
+    async def _update_state(self):
         if self.turned_on():
+            await self._stop_mode()
+            mode_to_start = self._state_manager.mode
+            self._start_mode(mode_to_start)
             return
 
         if self.turned_off():
@@ -52,6 +46,7 @@ class StripWorker(Worker):
             return
 
         if self.mode_changed():
+            await self._stop_mode()
             mode_to_start = self._state_manager.mode
             self._start_mode(mode_to_start)
             return

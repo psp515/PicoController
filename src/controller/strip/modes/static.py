@@ -1,6 +1,6 @@
 import uasyncio
 
-from controller.strip.mode import Mode
+from controller.strip.modes.mode import Mode
 
 DEFAULT_COLOR = (255, 255, 255)
 

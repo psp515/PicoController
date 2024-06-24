@@ -1,9 +1,9 @@
-import uasyncio
+import asyncio
 
 from machine import reset
 
 from controller.state_manager import StateManager
-from controller.worker import Worker
+from controller.interfaces.worker import Worker
 from devices.management_button import ManagementButton
 
 
@@ -23,24 +23,23 @@ class ButtonWorker(Worker):
                 while pressed and count < 50:
                     count += 1
                     pressed = self.button.pressed()
-                    await uasyncio.sleep_ms(100)
+                    await asyncio.sleep_ms(100)
 
                 await self._handle_press(count)
 
-            await uasyncio.sleep_ms(10)
+            await asyncio.sleep_ms(50)
 
     async def _handle_press(self, count: int):
         self.logger.debug(f"Button pressed for {count} times.")
-        if count < 2:
-            return
 
         if count < 10:
-            self.logger.debug("Toogle leds.")
+            self.logger.debug("Toggle leds.")
             await self.state_manager.toggle_working()
 
         if count < 25:
             return
 
         if count < 40:
+            self.logger.debug("Toggle leds.")
+            await asyncio.sleep(1)
             reset()
-
