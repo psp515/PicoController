@@ -1,6 +1,6 @@
 from configuration.features.mqtt_options import MqttOptions
 from mqtt_as import config, MQTTClient
-from logging.logger import Logger
+from utils.logger import Logger
 
 from configuration.features.wifi_options import WifiOptions
 
@@ -29,6 +29,7 @@ class MqttFactory:
         config['server'] = self.mqtt_options.url
         config['ssl'] = True
         config['ssl_params'] = {"server_hostname": self.mqtt_options.url}
+        config["queue_len"] = 1
 
         logger.debug(f"MQTT options: {self.mqtt_options.username}, {self.mqtt_options.password}, {self.mqtt_options.url}")
 

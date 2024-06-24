@@ -4,24 +4,33 @@ from controller.interfaces.module import Module
 from controller.mqtt.factories.factory import MqttFactory
 from controller.mqtt.workers.connection_worker import ConnectionWorker
 from controller.mqtt.workers.disconnection_worker import DisconnectionWorker
+from controller.mqtt.workers.message_reader_worker import MessageReaderWorker
 
 
 class MqttModule(Module):
     def __init__(self):
         super().__init__("Mqtt Module")
         self.workers = [ConnectionWorker(),
-                        DisconnectionWorker()]
+                        DisconnectionWorker(),
+                        MessageReaderWorker()]
 
     async def run(self):
         self.logger.info(f'Initializing {self.name}')
 
         self.logger.info('Initializing Wifi and Mqtt.')
-        if self.logger.debug():
+        if self.logger.is_debug():
             self._list_networks()
 
         factory = MqttFactory()
         client = factory.create()
-        await client.connect()
+
+        try:
+            await client.connect()
+        except Exception as e:
+            self.logger.error(f"Failed to connect with wifi or mqtt broker.")
+            self.logger.debug(e)
+            raise e
+
         await super().run()
 
     def _list_networks(self):

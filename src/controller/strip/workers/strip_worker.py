@@ -24,14 +24,17 @@ class StripWorker(Worker):
     async def run(self):
         self.logger.info("Starting strip worker.")
 
-        while True:
-            if self._state_manager.updated():
-                self.logger.debug("New state for controller.")
-                state = await self._state_manager.get_state()
-                await self._update_state()
-                self._last_state = state
+        try:
+            while True:
+                if self._state_manager.updated():
+                    self.logger.debug("New state for controller.")
+                    state = await self._state_manager.get_state()
+                    await self._update_state()
+                    self._last_state = state
 
-            await uasyncio.sleep_ms(40)
+                await uasyncio.sleep_ms(40)
+        except Exception as e:
+            self.logger.debug(f"Error in strip worker: {e}")
 
     async def _update_state(self):
         if self.turned_on():

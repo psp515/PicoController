@@ -14,20 +14,25 @@ class ButtonWorker(Worker):
         self.state_manager = StateManager()
 
     async def run(self):
-        while True:
-            initial = self.button.pressed()
-            if initial:
-                self.logger.debug("Button pressed.")
-                count = 0
-                pressed = True
-                while pressed and count < 50:
-                    count += 1
-                    pressed = self.button.pressed()
-                    await asyncio.sleep_ms(100)
+        self.logger.info("Starting button worker.")
 
-                await self._handle_press(count)
+        try:
+            while True:
+                initial = self.button.pressed()
+                if initial:
+                    self.logger.debug("Button pressed.")
+                    count = 0
+                    pressed = True
+                    while pressed and count < 50:
+                        count += 1
+                        pressed = self.button.pressed()
+                        await asyncio.sleep_ms(100)
 
-            await asyncio.sleep_ms(50)
+                    await self._handle_press(count)
+
+                await asyncio.sleep_ms(50)
+        except Exception as e:
+            self.logger.debug(f"Error in button worker: {e}")
 
     async def _handle_press(self, count: int):
         self.logger.debug(f"Button pressed for {count} times.")

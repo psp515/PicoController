@@ -11,10 +11,13 @@ class ConnectionWorker(Worker):
 
     async def run(self):
         self.logger.info("Starting mqtt connection worker.")
-        while True:
-            await self._client.up.wait()
-            self._client.up.clear()
-            self.logger.info("Connection established subscribing to topics.")
-            for topic in self._topics:
-                self.logger.debug(f"Subscribing to topic: {topic}")
-                await self._client.subscribe(topic, 0)
+        try:
+            while True:
+                await self._client.up.wait()
+                self._client.up.clear()
+                self.logger.info("Connection established subscribing to topics.")
+                for topic in self._topics:
+                    self.logger.debug(f"Subscribing to topic: {topic}")
+                    await self._client.subscribe(topic, 0)
+        except Exception as e:
+            self.logger.error(f"Error in connection worker: {e}")

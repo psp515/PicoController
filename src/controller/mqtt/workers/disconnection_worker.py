@@ -10,8 +10,12 @@ class DisconnectionWorker(Worker):
         self._outages = 0
 
     async def run(self):
-        self.logger.info("Starting mqtt connection worker.")
-        while True:
-            await self._client.down.wait()
-            self._client.down.clear()
-            self.logger.error("Wifi or broker connection is down.")
+        self.logger.info("Starting mqtt disconnection worker.")
+        try:
+            while True:
+                await self._client.down.wait()
+                self._client.down.clear()
+                self.logger.error("Wifi or broker connection is down.")
+        except Exception as e:
+            self.logger.error(f"Error in disconnection worker: {e}")
+

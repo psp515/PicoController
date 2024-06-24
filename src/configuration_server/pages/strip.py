@@ -6,7 +6,7 @@ from configuration_server.request.enums.status_code import StatusCode
 from configuration_server.request.request import Request
 from configuration_server.request.response import Response
 from configuration_server.utils.html_builder import HtmlBuilder
-from logging.logger import Logger
+from utils.logger import Logger
 
 
 def get_strip_page(request: Request) -> Response:

@@ -1,4 +1,4 @@
-from logging.logger import Logger
+from utils.logger import Logger
 
 from controller.state_manager import StateManager
 from devices.strip import Strip

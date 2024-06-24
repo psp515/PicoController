@@ -1,7 +1,7 @@
 import json
 import uasyncio
 
-from logging.logger import Logger
+from utils.logger import Logger
 
 
 class State:

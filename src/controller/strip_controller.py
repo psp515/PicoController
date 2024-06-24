@@ -1,3 +1,4 @@
+import asyncio
 from machine import reset
 
 from controller.button.button_module import ButtonModule
@@ -21,11 +22,12 @@ class StripController(Mode):
             self.logger.info('Initializing led controller.')
 
             for module in self._modules:
-                await module.run()
+                asyncio.create_task(module.run())
 
         except Exception as e:
             self.logger.error(f'Error when initializing modules')
             self.logger.debug(e)
+            await asyncio.sleep(1)
             reset()
 
         self.logger.info('Initializing heartbeat.')
