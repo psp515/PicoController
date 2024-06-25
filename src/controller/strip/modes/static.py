@@ -1,6 +1,6 @@
 import uasyncio
 
-from controller.strip.modes.mode import Mode
+from controller.strip.modes.mode import Mode, DEFAULT_DELAY
 from controller.strip.utils.Color import Color, from_hex
 
 
@@ -78,7 +78,7 @@ class Static(Mode):
                 self.logger.debug(f"Step: {step}")
                 self.logger.debug(f"Current color: {self.strip.neopixel[0]}")
 
-            await uasyncio.sleep_ms(5)
+            await uasyncio.sleep_ms(DEFAULT_DELAY)
 
     @staticmethod
     def _include_brightness(color: tuple, brightness: int) -> tuple:

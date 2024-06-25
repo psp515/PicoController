@@ -23,4 +23,4 @@ class StateUpdaterWorker(Worker):
                 state = await self._state_manager.state()
                 await self._client.publish(self._state_topic, state.json_dump())
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep_ms(100)

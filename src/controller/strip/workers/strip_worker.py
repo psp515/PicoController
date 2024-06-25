@@ -2,6 +2,7 @@ import uasyncio
 
 from controller.state_manager import StateManager, DEFAULT_STATE, State
 from controller.strip.modes.off import Off
+from controller.strip.modes.rgb import Rgb
 from controller.strip.modes.static import Static
 from controller.strip.modes.static_white import StaticWhite
 from controller.interfaces.worker import Worker
@@ -14,7 +15,7 @@ class StripWorker(Worker):
         self._strip = Strip()
         self._state_manager = StateManager()
         self._current_state = DEFAULT_STATE
-        self._mode = None
+        self._mode_task = None
 
         if self._strip.length < 1:
             raise ValueError("Strip length is less than 1 led.")
@@ -56,28 +57,32 @@ class StripWorker(Worker):
             self._start_mode(state.mode)
             return
 
-    def _start_mode(self, mode: int):
-        task = None
+    def _start_mode(self, mode_id: int):
+        mode = StaticWhite()
 
-        if mode == 0:
-            task = Off()
-        elif mode == 1:
-            task = StaticWhite()
+        if mode_id == 0:
+            mode = Off()
+        elif mode_id == 1:
+            mode = StaticWhite()
+        elif mode_id == 2:
+            mode = Static()
+        elif mode_id == 3:
+            mode = Rgb()
         else:
-            task = Static()
+            self.logger.error(f"Unknown mode: {mode_id}.")
 
-        self._mode = uasyncio.create_task(task.run())
+        self._mode_task = uasyncio.create_task(mode.run())
 
     async def _stop_mode(self):
-        if self._mode is None:
+        if self._mode_task is None:
             return
 
-        if self._mode.done():
+        if self._mode_task.done():
             return
 
         try:
-            self._mode.cancel()
-            await self._mode
+            self._mode_task.cancel()
+            await self._mode_task
         except uasyncio.CancelledError:
             self.logger.debug("Animation stopped.")
 

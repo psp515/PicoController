@@ -1,4 +1,5 @@
 import uasyncio
+import gc
 from machine import reset
 
 from configuration.extensions import initialize_configuration
@@ -13,6 +14,11 @@ from mode import Mode
 
 async def main():
     logger = Logger()
+    logger.info('Initializing device.')
+
+    logger.debug(f"Free memory: {gc.mem_free()} bytes.")
+    gc.collect()
+    logger.debug(f"Free memory after collect: {gc.mem_free()} bytes.")
 
     logger.info('Initializing configuration.')
     initialize_configuration()
@@ -45,4 +51,6 @@ if __name__ == '__main__':
         uasyncio.run(main())
     finally:
         uasyncio.new_event_loop()
-        reset()
+        logger = Logger()
+        if not logger.is_debug():
+            reset()
