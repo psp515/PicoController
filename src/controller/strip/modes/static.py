@@ -1,6 +1,7 @@
 import uasyncio
 
-from controller.strip.modes.mode import Mode
+from controller.state_manager import State
+from controller.strip.modes.mode import Mode, DEFAULT_DELAY
 from controller.strip.utils.Color import Color, from_hex
 
 
@@ -30,31 +31,33 @@ class Static(Mode):
     async def _color(self) -> Color:
         try:
             state = await self.state_manager.state()
-            data = state.mode_data
-
-            if "color" not in data and not ("r" in data or "g" in data or "b" in data):
-                return self._current_color if self._current_color is not None else default_color(state.brightness)
-
-            if "color" in data:
-                color = data["color"]
-                return from_hex(color, state.brightness)
-
-            r, g, b = 0, 0, 0
-
-            if "r" in data and isinstance(data["r"], int):
-                r = data["r"]
-
-            if "g" in data and isinstance(data["g"], int):
-                g = data["g"]
-
-            if "b" in data and isinstance(data["b"], int):
-                b = data["b"]
-
-            return Color(r=r, g=g, b=b, brightness=state.brightness)
+            return self._deduce_color(state)
         except Exception as e:
             self.logger.error(f"Error when getting color.")
             self.logger.debug(f"Exception: {e}")
             return self._current_color
+
+    def _deduce_color(self, state: State) -> Color:
+        data = state.mode_data
+        if "color" not in data and not ("r" in data or "g" in data or "b" in data):
+            return self._current_color if self._current_color is not None else default_color(state.brightness)
+
+        if "color" in data:
+            color = data["color"]
+            return from_hex(color, state.brightness)
+
+        r, g, b = 0, 0, 0
+
+        if "r" in data and isinstance(data["r"], int):
+            r = data["r"]
+
+        if "g" in data and isinstance(data["g"], int):
+            g = data["g"]
+
+        if "b" in data and isinstance(data["b"], int):
+            b = data["b"]
+
+        return Color(r=r, g=g, b=b, brightness=state.brightness)
 
     async def animate_to_color(self, target_color: Color, steps=64):
         self.logger.debug(f"Animating to color: {target_color}")
@@ -78,8 +81,4 @@ class Static(Mode):
                 self.logger.debug(f"Step: {step}")
                 self.logger.debug(f"Current color: {self.strip.neopixel[0]}")
 
-            await uasyncio.sleep_ms(5)
-
-    @staticmethod
-    def _include_brightness(color: tuple, brightness: int) -> tuple:
-        return tuple(int(c * brightness) for c in color)
+            await uasyncio.sleep_ms(DEFAULT_DELAY)

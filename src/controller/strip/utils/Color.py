@@ -28,6 +28,11 @@ class Color:
                 self._g == other._g and
                 self._b == other._b)
 
+    def set_brightness(self, brightness: float):
+        if brightness < 0 or brightness > 1:
+            raise ValueError(f"Invalid brightness value. Brightness={brightness}")
+        self._brightness = brightness
+
     def rgb(self) -> tuple:
         r = int(self._r * self._brightness)
         g = int(self._g * self._brightness)

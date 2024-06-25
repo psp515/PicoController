@@ -45,6 +45,6 @@ class ButtonWorker(Worker):
             return
 
         if count < 40:
-            self.logger.debug("Toggle leds.")
+            self.logger.debug("Restarting device.")
             await asyncio.sleep(1)
             reset()

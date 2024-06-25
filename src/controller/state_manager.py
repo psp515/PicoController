@@ -111,7 +111,7 @@ class StateManager:
 
                 brightness = round(float(brightness), 2)
 
-                if 0.01 <= brightness <= 1.0 and brightness != self._brightness:
+                if 0.01 <= brightness <= 1.0:
                     self._brightness = brightness
                 else:
                     raise ValueError("Brightness must be a float between 0.01 and 1.0")

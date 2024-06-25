@@ -49,13 +49,70 @@ Mode is curent lightning style by device.
 }
 ```
 
-##### Color
+##### Static Color
+
+Json to enable mode and set color to magenta.
+``` 
+{ 
+    "mode": 2,
+    "mode_data": {
+        "color": "#FF00FF"
+    }
+}
+```
+
+Json to change color when mode active.
 
 ``` 
 { 
-    "mode": 2
     "mode_data": {
-        "color": "#FF00FF"
+        "color": "#FFFF00"
+    }
+}
+```
+
+Alternative json to change color when mode active.
+
+``` 
+{ 
+    "mode_data": {
+        "r": 127,
+        "g": 80,
+        "b": 0,
+    }
+}
+```
+
+##### RGB
+
+Json to enable mode..
+``` 
+{ 
+    "mode": 3
+}
+```
+
+##### Loading
+
+Json to enable mode.
+``` 
+{ 
+    "mode": 4
+}
+```
+
+Full management json.
+``` 
+{ 
+    "mode": 4,
+    "mode_data":
+    {
+        "running": 5 # Number of running leds,
+        "color": "#FFFF00"
+        # Alternative
+        "r": 127,
+        "g": 80,
+        "b": 0
     }
 }
 ```
