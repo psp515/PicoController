@@ -1,6 +1,7 @@
 import uasyncio
 
 from controller.state_manager import StateManager, DEFAULT_STATE, State
+from controller.strip.modes.loading import Loading
 from controller.strip.modes.off import Off
 from controller.strip.modes.rgb import Rgb
 from controller.strip.modes.static import Static
@@ -68,6 +69,8 @@ class StripWorker(Worker):
             mode = Static()
         elif mode_id == 3:
             mode = Rgb()
+        elif mode_id == 4:
+            mode = Loading()
         else:
             self.logger.error(f"Unknown mode: {mode_id}.")
 

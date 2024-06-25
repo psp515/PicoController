@@ -85,9 +85,34 @@ Alternative json to change color when mode active.
 
 ##### RGB
 
-Json to enable mode and set color to magenta.
+Json to enable mode..
 ``` 
 { 
     "mode": 3
+}
+```
+
+##### Loading
+
+Json to enable mode.
+``` 
+{ 
+    "mode": 4
+}
+```
+
+Full management json.
+``` 
+{ 
+    "mode": 4,
+    "mode_data":
+    {
+        "running": 5 # Number of running leds,
+        "color": "#FFFF00"
+        # Alternative
+        "r": 127,
+        "g": 80,
+        "b": 0
+    }
 }
 ```
