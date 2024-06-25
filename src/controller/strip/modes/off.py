@@ -1,7 +1,7 @@
 from controller.strip.modes.static import Static
+from controller.strip.utils.Color import Color
 
-
-OFF_COLOR = (0, 0, 0)
+OFF_COLOR = Color(0, 0, 0, 0)
 
 
 class Off(Static):

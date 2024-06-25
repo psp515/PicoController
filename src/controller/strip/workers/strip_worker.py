@@ -29,7 +29,7 @@ class StripWorker(Worker):
             while True:
                 if self._state_manager.updated():
                     self.logger.debug("New state for controller.")
-                    state = await self._state_manager.get_state()
+                    state = await self._state_manager.state()
                     await self._update_state()
                     self._last_state = state
 

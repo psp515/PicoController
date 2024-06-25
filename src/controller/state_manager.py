@@ -1,6 +1,7 @@
 import json
 import uasyncio
 
+from configuration.features.mqtt_options import MqttOptions
 from utils.logger import Logger
 
 
@@ -33,16 +34,17 @@ class StateManager:
 
     def __init__(self):
         if not hasattr(self, 'initialized'):
-            self.initialized = True
-
             self._brightness = 1.0
             self._mode = 1
             self._mode_data = {}
             self._working = False
-
             self._updated = False
+
             self._lock = uasyncio.Lock()
             self._logger = Logger()
+            self._mqtt_options = MqttOptions()
+
+            self.initialized = True
 
     @property
     def brightness(self) -> float:
@@ -81,6 +83,11 @@ class StateManager:
         return self._updated
 
     async def handle(self, topic: str, payload: str):
+
+        if topic != self._mqtt_options.topic:
+            self._logger.debug(f"Received message on topic: {topic}. Expected topic: {self._mqtt_options.topic}")
+            return
+
         self._logger.debug(f"Handling state data: {payload}")
         try:
             await self._lock.acquire()
@@ -130,7 +137,7 @@ class StateManager:
         finally:
             self._lock.release()
 
-    async def get_state(self):
+    async def state(self):
         try:
             await self._lock.acquire()
             self._updated = False

@@ -1,9 +1,10 @@
 import uasyncio
 
-from controller.strip.modes.static import Static, DEFAULT_COLOR
+from controller.strip.modes.static import Static
+from controller.strip.utils.Color import Color
 
 
 class StaticWhite(Static):
-    def _color(self):
-        color = DEFAULT_COLOR
-        return self._include_brightness(color, self.state_manager.brightness)
+    async def _color(self):
+        state = await self.state_manager.state()
+        return Color(state.brightness, 255, 255, 255)
