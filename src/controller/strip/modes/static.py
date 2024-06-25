@@ -3,13 +3,15 @@ import uasyncio
 from controller.strip.modes.mode import Mode
 from controller.strip.utils.Color import Color, from_hex
 
-DEFAULT_COLOR = Color(1.0, 255, 255, 255)
+
+def default_color(brightness: float):
+    return Color(255, 255, 255, brightness)
 
 
 class Static(Mode):
     def __init__(self):
         super().__init__()
-        self._current_color = DEFAULT_COLOR
+        self._current_color = None
 
     async def run(self):
         self.logger.info("Starting static mode.")
@@ -21,7 +23,7 @@ class Static(Mode):
                 await uasyncio.sleep_ms(15)
                 continue
 
-            self.logger.debug("Color changed.")
+            self.logger.debug(f"New color: {color}")
             self._current_color = color
             await self.animate_to_color(color)
 
@@ -29,12 +31,13 @@ class Static(Mode):
         try:
             state = await self.state_manager.state()
             data = state.mode_data
+
+            if "color" not in data and not ("r" in data or "g" in data or "b" in data):
+                return self._current_color if self._current_color is not None else default_color(state.brightness)
+
             if "color" in data:
                 color = data["color"]
                 return from_hex(color, state.brightness)
-
-            if not ("r" in data or "g" in data or "b" in data):
-                return self._current_color
 
             r, g, b = 0, 0, 0
 
@@ -63,6 +66,7 @@ class Static(Mode):
                     current_color[j] + (target_color[j] - current_color[j]) * step // steps
                     for j in range(3)
                 ]
+                #self.logger.debug(f"New color: {new_color}")
                 self.strip.neopixel[i] = tuple(new_color)
             self.strip.neopixel.write()
 

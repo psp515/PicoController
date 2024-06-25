@@ -20,6 +20,14 @@ class Color:
     def __str__(self) -> str:
         return f"Color(brightness={self._brightness}, r={self._r}, g={self._g}, b={self._b}, adjusted_rgb={self.rgb()})"
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Color):
+            return False
+        return (self._brightness == other._brightness and
+                self._r == other._r and
+                self._g == other._g and
+                self._b == other._b)
+
     def rgb(self) -> tuple:
         r = int(self._r * self._brightness)
         g = int(self._g * self._brightness)
