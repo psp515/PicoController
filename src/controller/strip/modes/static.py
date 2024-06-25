@@ -3,10 +3,11 @@ import uasyncio
 from controller.strip.modes.mode import Mode
 from controller.strip.utils.Color import Color, from_hex
 
-DEFAULT_COLOR = (255, 255, 255)
+
+def default_color(brightness: float):
+    return Color(brightness=brightness, r=255, g=255, b=255)
 
 
-# TODO: Change current_color to dedicated class
 class Static(Mode):
     def __init__(self):
         super().__init__()
@@ -16,47 +17,48 @@ class Static(Mode):
         self.logger.info("Starting static mode.")
 
         while True:
-            new_color = self._color()
+            color = await self._color()
 
-            if self._current_color == new_color:
+            if self._current_color == color:
                 await uasyncio.sleep_ms(15)
                 continue
 
-            self.logger.debug("Color changed.")
-            self._current_color = new_color
-            await self.animate_to_color(new_color)
+            self.logger.debug(f"New color: {color}")
+            self._current_color = color
+            await self.animate_to_color(color)
 
-    def _color(self):
-        new_data = self.state_manager.mode_data
-        if "color" in new_data:
-            color = new_data["color"]
-            color = from_hex(color)
-            if not color.is_valid:
-                return self._current_color
+    async def _color(self) -> Color:
+        try:
+            state = await self.state_manager.state()
+            data = state.mode_data
 
-            return color.rgb()
+            if "color" not in data and not ("r" in data or "g" in data or "b" in data):
+                return self._current_color if self._current_color is not None else default_color(state.brightness)
 
-        r,g,b = 0, 0, 0
+            if "color" in data:
+                color = data["color"]
+                return from_hex(color, state.brightness)
 
-        if "r" in new_data and isinstance(new_data["r"], int):
-            r = min(255, max(0, new_data["r"]))
+            r, g, b = 0, 0, 0
 
-        if "g" in new_data and isinstance(new_data["g"], int):
-            g = min(255, max(0, new_data["g"]))
+            if "r" in data and isinstance(data["r"], int):
+                r = data["r"]
 
-        if "b" in new_data and isinstance(new_data["b"], int):
-            b = min(255, max(0, new_data["b"]))
+            if "g" in data and isinstance(data["g"], int):
+                g = data["g"]
 
-        color = Color(r=r, g=g, b=b)
-        if color.is_valid:
-            return color.rgb()
+            if "b" in data and isinstance(data["b"], int):
+                b = data["b"]
 
-        return self._include_brightness(DEFAULT_COLOR, self.state_manager.brightness)
+            return Color(r=r, g=g, b=b, brightness=state.brightness)
+        except Exception as e:
+            self.logger.error(f"Error when getting color.")
+            self.logger.debug(f"Exception: {e}")
+            return self._current_color
 
-
-
-    async def animate_to_color(self, target_color, steps=64):
+    async def animate_to_color(self, target_color: Color, steps=64):
         self.logger.debug(f"Animating to color: {target_color}")
+
         for step in range(steps):
             for i in range(self.strip.length):
                 current_color = self.strip.neopixel[i]
@@ -64,11 +66,12 @@ class Static(Mode):
                     current_color[j] + (target_color[j] - current_color[j]) * step // steps
                     for j in range(3)
                 ]
+                #self.logger.debug(f"New color: {new_color}")
                 self.strip.neopixel[i] = tuple(new_color)
             self.strip.neopixel.write()
 
-            if step % 10 == 0 and target_color != self._color():
-                # If color changes, break the loop
+            color = await self._color()
+            if step % 10 == 0 and target_color != color:
                 break
 
             if step % 10 == 0:
