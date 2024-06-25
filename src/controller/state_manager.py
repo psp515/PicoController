@@ -36,22 +36,6 @@ class State:
         return not self.__eq__(other)
 
 
-class UpdateState:
-    def __init__(self, update_strip: bool, update_mode: bool, push_updates: bool):
-        self._update_strip = update_strip
-        self._update_mode = update_mode
-        self._push_updates = push_updates
-
-    def update_strip(self) -> bool:
-        return self._update_strip
-
-    def update_mode(self) -> bool:
-        return self._update_mode
-
-    def update_mqtt(self) -> bool:
-        return self._push_updates
-
-
 DEFAULT_STATE = State(False, 1.0, 1, {})
 
 
@@ -70,7 +54,7 @@ class StateManager:
             self._mode_data = {}
             self._working = False
 
-            self._push_updates = False
+            self._update_mqtt = False
 
             self._lock = uasyncio.Lock()
             self._logger = Logger()
@@ -82,7 +66,7 @@ class StateManager:
         try:
             await self._lock.acquire()
             self._working = True if not self._working else False
-            self._push_updates = True
+            self._update_mqtt = True
         except Exception as e:
             self._logger.error(f"Error when toggling working state. Exception: {e}")
         finally:
@@ -102,10 +86,10 @@ class StateManager:
             if 'working' in data:
                 working = data['working']
                 self._logger.debug(f"Read Working: {working}")
-                if isinstance(working, bool) and bool(working) != self._working:
+                if isinstance(working, bool):
                     self._working = working
                 else:
-                    raise ValueError("working must be a boolean")
+                    raise ValueError("Working must be a boolean")
 
             if not self._working:
                 self._logger.info("Controller is not working. Cannot update state.")
@@ -155,12 +139,12 @@ class StateManager:
         finally:
             self._lock.release()
 
-    async def updates_pushed(self):
+    async def should_update_mqtt(self):
         try:
             await self._lock.acquire()
-            self._push_updates = False
+            return self._update_mqtt
         except Exception as e:
-            self._logger.error(f"Error when pushing updates. Exception: {e}")
+            self._logger.error(f"Error when updating mqtt. Exception: {e}")
         finally:
+            self._update_mqtt = False
             self._lock.release()
-

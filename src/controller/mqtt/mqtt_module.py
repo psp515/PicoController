@@ -5,6 +5,7 @@ from controller.mqtt.factories.factory import MqttFactory
 from controller.mqtt.workers.connection_worker import ConnectionWorker
 from controller.mqtt.workers.disconnection_worker import DisconnectionWorker
 from controller.mqtt.workers.message_reader_worker import MessageReaderWorker
+from controller.mqtt.workers.state_updater_worker import StateUpdaterWorker
 
 
 class MqttModule(Module):
@@ -12,7 +13,8 @@ class MqttModule(Module):
         super().__init__("Mqtt Module")
         self.workers = [ConnectionWorker(),
                         DisconnectionWorker(),
-                        MessageReaderWorker()]
+                        MessageReaderWorker(),
+                        StateUpdaterWorker()]
 
     async def run(self):
         self.logger.info(f'Initializing {self.name}')

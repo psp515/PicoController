@@ -5,7 +5,7 @@ from controller.strip.utils.Color import Color, from_hex
 
 
 def default_color(brightness: float):
-    return Color(255, 255, 255, brightness)
+    return Color(brightness=brightness, r=255, g=255, b=255)
 
 
 class Static(Mode):

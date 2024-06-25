@@ -4,10 +4,10 @@ class Color:
     def __init__(self, brightness: float, r: int = 0, g: int = 0, b: int = 0):
 
         if not 0 <= r <= 255 or not 0 <= g <= 255 or not 0 <= b <= 255:
-            raise ValueError("Invalid RGB values.")
+            raise ValueError(f"Invalid RGB values. R={r}, G={g}, B={b}")
 
         if brightness < 0 or brightness > 1:
-            raise ValueError("Invalid brightness value.")
+            raise ValueError(f"Invalid brightness value. Brightness={brightness}")
 
         self._r = r
         self._g = g
