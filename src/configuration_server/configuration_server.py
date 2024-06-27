@@ -1,4 +1,4 @@
-import uasyncio
+import asyncio
 import network
 from machine import Pin
 
@@ -29,7 +29,7 @@ class ConfigurationServer(Mode):
 
     async def _run_server(self):
         self.logger.info("Initializing server.")
-        uasyncio.create_task(uasyncio.start_server(self._handle_client, '0.0.0.0', 80))
+        asyncio.create_task(asyncio.start_server(self._handle_client, '0.0.0.0', 80))
 
     async def _create_access_point(self):
         self.logger.info("Initializing access point.")
@@ -38,7 +38,7 @@ class ConfigurationServer(Mode):
         ap.active(True)
 
         while not ap.active():
-            await uasyncio.sleep(1)
+            await asyncio.sleep(1)
 
         self.logger.debug(ap.ifconfig())
 

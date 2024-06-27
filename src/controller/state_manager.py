@@ -1,8 +1,8 @@
 import json
-import uasyncio
+import asyncio
 
 from configuration.features.mqtt_options import MqttOptions
-from utils.dict_extensions import deep_copy
+from utils.extensions.dict_extensions import deep_copy
 from utils.logger import Logger
 
 
@@ -37,6 +37,8 @@ class State:
 
 
 DEFAULT_STATE = State(False, 1.0, 1, {})
+MAX_MODE_ID = 3
+MIN_MODE_ID = 0
 
 
 class StateManager:
@@ -56,19 +58,39 @@ class StateManager:
 
             self._update_mqtt = False
 
-            self._lock = uasyncio.Lock()
+            self._lock = asyncio.Lock()
             self._logger = Logger()
             self._mqtt_options = MqttOptions()
 
             self.initialized = True
 
-    async def toggle_working(self):
+    async def on(self):
         try:
             await self._lock.acquire()
-            self._working = True if not self._working else False
+            self._working = True
             self._update_mqtt = True
         except Exception as e:
             self._logger.error(f"Error when toggling working state. Exception: {e}")
+        finally:
+            self._lock.release()
+
+    async def off(self):
+        try:
+            await self._lock.acquire()
+            self._working = False
+            self._update_mqtt = True
+        except Exception as e:
+            self._logger.error(f"Error when toggling working state. Exception: {e}")
+        finally:
+            self._lock.release()
+
+    async def next_mode(self):
+        try:
+            await self._lock.acquire()
+            self._mode = (self._mode + 1) % (MAX_MODE_ID + 1)
+            self._update_mqtt = True
+        except Exception as e:
+            self._logger.error(f"Error when switching mode. Exception: {e}")
         finally:
             self._lock.release()
 
@@ -98,7 +120,7 @@ class StateManager:
             if 'mode' in data:
                 mode = data['mode']
                 self._logger.debug(f"Read Mode: {mode}")
-                if isinstance(mode, int) and 1 <= mode <= 4:
+                if isinstance(mode, int) and MIN_MODE_ID <= mode <= MAX_MODE_ID:
                     self._mode = mode
                 else:
                     raise ValueError("Mode must be an integer between 1 and 10")
