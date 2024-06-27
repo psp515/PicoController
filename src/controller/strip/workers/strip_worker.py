@@ -2,12 +2,8 @@ import asyncio
 
 from controller.mode_manager import ModeManager
 from controller.state_manager import StateManager, DEFAULT_STATE, State
-from controller.strip.modes.loading import Loading
+
 from controller.strip.modes.mode import Mode
-from controller.strip.modes.off import Off
-from controller.strip.modes.rgb import Rgb
-from controller.strip.modes.static import Static
-from controller.strip.modes.static_white import StaticWhite
 from controller.interfaces.worker import Worker
 from devices.strip import Strip
 
@@ -62,10 +58,12 @@ class StripWorker(Worker):
             return
 
     def _start_mode(self, identification: int):
+        self.logger.debug(f"Starting mode: {identification}")
         mode = self._mode_manager.get_mode(identification)
         self._internal_start_mode(mode)
 
     def _start_off_mode(self):
+        self.logger.debug("Starting off mode.")
         off_mode = self._mode_manager.get_off_mode()
         self._internal_start_mode(off_mode)
 

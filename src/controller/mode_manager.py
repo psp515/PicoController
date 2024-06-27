@@ -21,7 +21,6 @@ class ModeManager:
         if not hasattr(self, 'initialized'):
             self._logger = Logger()
             self._default_mode = Static
-            self._off_mode = Off
             self._modes = [
                 StaticWhite,
                 Static,
@@ -36,7 +35,7 @@ class ModeManager:
             self.initialized = True
 
     def get_off_mode(self) -> Mode:
-        return self._off_mode()
+        return Off()
 
     def get_default_mode(self) -> Mode:
         return self._default_mode()

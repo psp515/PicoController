@@ -58,9 +58,10 @@ class ButtonWorker(Worker):
             await self.state_manager.next_mode()
             return
 
-        if count < 15:
+        if count < 20:
             self.logger.debug("Turning off device.")
             await self.state_manager.off()
+            return
 
         if count <= 25:
             self.logger.debug("Restarting device.")
