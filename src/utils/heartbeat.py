@@ -1,4 +1,4 @@
-import uasyncio
+import asyncio
 
 from devices.status_beam import StatusBeam
 from utils.logger import Logger
@@ -17,4 +17,4 @@ class Heartbeat:
         while True:
             self.logger.debug("Heartbeat.")
             await self.led.blink(1)
-            await uasyncio.sleep(HEARTBEAT_DELAY)
+            await asyncio.sleep(HEARTBEAT_DELAY)

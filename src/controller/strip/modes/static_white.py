@@ -1,4 +1,4 @@
-import uasyncio
+import asyncio
 
 from controller.strip.modes.static import Static, default_color
 

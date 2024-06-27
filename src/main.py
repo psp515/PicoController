@@ -1,4 +1,4 @@
-import uasyncio
+import asyncio
 import gc
 from machine import reset
 
@@ -48,9 +48,9 @@ async def main():
 
 if __name__ == '__main__':
     try:
-        uasyncio.run(main())
+        asyncio.run(main())
     finally:
-        uasyncio.new_event_loop()
+        asyncio.new_event_loop()
         logger = Logger()
         if not logger.is_debug():
             reset()

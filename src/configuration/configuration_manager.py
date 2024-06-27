@@ -1,7 +1,7 @@
 import json
 import os
 
-from utils.os_extensions import dir_exists, file_exists
+from utils.extensions.os_extensions import dir_exists, file_exists
 
 
 def _ensure_file_exists(path):

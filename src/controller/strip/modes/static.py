@@ -1,4 +1,4 @@
-import uasyncio
+import asyncio
 
 from controller.state_manager import State
 from controller.strip.modes.mode import Mode, DEFAULT_DELAY
@@ -21,7 +21,7 @@ class Static(Mode):
             color = await self._color()
 
             if self._current_color == color:
-                await uasyncio.sleep_ms(15)
+                await asyncio.sleep_ms(15)
                 continue
 
             self.logger.debug(f"New color: {color}")
@@ -81,4 +81,4 @@ class Static(Mode):
                 self.logger.debug(f"Step: {step}")
                 self.logger.debug(f"Current color: {self.strip.neopixel[0]}")
 
-            await uasyncio.sleep_ms(DEFAULT_DELAY)
+            await asyncio.sleep_ms(DEFAULT_DELAY)

@@ -1,4 +1,4 @@
-import uasyncio
+import asyncio
 from machine import reset
 
 from utils.logger import Logger
@@ -58,12 +58,12 @@ def get_home_page(request: Request) -> Response:
 
 
 async def _restart():
-    await uasyncio.sleep(2)
+    await asyncio.sleep(2)
     reset()
 
 
 def restart_device(request: Request) -> Response:
     logger = Logger()
     logger.info("Restarting device.")
-    uasyncio.create_task(_restart())
+    asyncio.create_task(_restart())
     return Response(protocol=request.protocol, status_code=StatusCode.OK, headers={}, body="")

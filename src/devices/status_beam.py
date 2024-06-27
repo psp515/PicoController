@@ -1,5 +1,5 @@
 from machine import Pin
-from uasyncio import sleep_ms, Lock
+from asyncio import sleep_ms, Lock
 
 DELAY = 100
 
