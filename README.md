@@ -37,17 +37,9 @@ To facilitate setup, the device comes with a 3D model and detailed assembly inst
 
 ### Built With
 
-<div>
-  <a>
-    <img src="https://img.shields.io/badge/-Micropyhon-FFFFFF?logo=micropyhon" />
-  </a>
-  <a>
-    <img src="https://img.shields.io/badge/-Python-FFFFFF?logo=python" />
-  </a>
-  <a>
-    <img src="https://img.shields.io/badge/-HiveMQ-FFFFFF?logo=hivemq" />
-  </a>
-</div>
+![Micro Python](https://img.shields.io/badge/MicroPython-14354C?style=for-the-badge&logo=micropython&logoColor=white&style=flat)
+![Raspberry Pi](https://img.shields.io/badge/-Raspberry%20Pi%20Pico%20W-C51A4A?style=for-the-badge&logo=Raspberry-Pi&logoColor=white&style=flat)
+![HiveMq](https://img.shields.io/badge/-HiveMQ-F5F5F5?style=for-the-badge&logo=hivemq&logoColor=yellow&style=flat)
 
 ### License
 
