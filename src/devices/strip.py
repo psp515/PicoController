@@ -1,9 +1,10 @@
 import neopixel
 
 from machine import Pin
-from configuration.features.strip_options import StripOptions
 
-NEOPIXEL_PIN = 15
+from configuration.features.strip_options import StripOptions
+from utils.logger import Logger
+
 MAX_PIXELS = 300
 
 
@@ -15,11 +16,14 @@ class Strip:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, pin: int = NEOPIXEL_PIN):
+    def __init__(self):
         if not getattr(self, '_initialized', False):
-            self.pin = Pin(pin, Pin.OUT)
+            logger = Logger()
+            options = StripOptions()
+            logger.info(f"Initializing strip with pin {options.strip_pin} and length {options.length}")
+            self.pin = Pin(options.strip_pin, Pin.OUT)
             self._initialized = True
-            self.length = StripOptions().length
+            self.length = options.length
             self._neopixel = neopixel.NeoPixel(self.pin, self.length)
 
     @property

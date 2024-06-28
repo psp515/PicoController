@@ -2,7 +2,8 @@ from machine import Pin
 import asyncio
 import time
 
-DEFAULT_BUTTON_PIN = 14
+from configuration.features.button_options import ButtonOptions
+from utils.logger import Logger
 
 
 class ManagementButton:
@@ -13,9 +14,12 @@ class ManagementButton:
             cls._instance = super(ManagementButton, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, pin_number: int = DEFAULT_BUTTON_PIN, pull_up: bool = True):
+    def __init__(self):
         if not hasattr(self, 'initialized'):
-            self.pin = Pin(pin_number, Pin.IN, Pin.PULL_UP if pull_up else None)
+            logger = Logger()
+            options = ButtonOptions()
+            logger.info(f"Initializing management button with pin {options.button_pin}")
+            self.pin = Pin(options.button_pin, Pin.IN, Pin.PULL_UP)
             self.initialized = True
 
     async def wait_for_press(self, max_duration: int = 2000):

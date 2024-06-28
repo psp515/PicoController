@@ -1,6 +1,8 @@
 from machine import Pin
 from asyncio import sleep_ms, Lock
 
+from utils.logger import Logger
+
 DELAY = 100
 
 
@@ -14,6 +16,8 @@ class StatusBeam:
 
     def __init__(self):
         if not getattr(self, 'initialized', False):
+            logger = Logger()
+            logger.info("Initializing status beam (default onboard led pin).")
             self.beam = Pin("LED", Pin.OUT)
             self.initialized = True
             self.beam.off()
