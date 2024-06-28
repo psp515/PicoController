@@ -32,7 +32,7 @@ Then upload this folder like in previous Transfering files step.
 
 Schema is example schema and can be configured.
 
-![Wiring Schema](https://github.com/psp515/PicoController/tree/main/docs/configuration/schema.png)
+![image](https://github.com/psp515/PicoController/assets/69080157/e89f11bb-18a2-498d-9ba6-92698c849342)
 
 Configurables can be found in ```app_settings.json```:
 - Neopixel strip pin - ```strip_pin``` - default pin ```15```
