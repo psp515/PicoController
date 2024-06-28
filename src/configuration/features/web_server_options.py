@@ -8,13 +8,15 @@ DEFAULT_WIFI_PASSWORD = "123456789"
 
 
 class WebServerOptions(BaseOptions):
+    NAME = "webserver"
+
     def __init__(self):
         super().__init__()
 
     @property
     def ssid(self):
         try:
-            ssid = self.manager.read_config(self.app_settings_name)["wifi"]["ssid"]
+            ssid = self.manager.read_config(self.app_settings_name)[self.NAME]["ssid"]
 
             if ssid == "":
                 return DEFAULT_WIFI_SSID
@@ -26,7 +28,7 @@ class WebServerOptions(BaseOptions):
     @property
     def password(self):
         try:
-            password = self.manager.read_config(self.app_settings_name)["wifi"]["password"]
+            password = self.manager.read_config(self.app_settings_name)[self.NAME]["password"]
 
             if password == "":
                 return DEFAULT_WIFI_PASSWORD

@@ -7,7 +7,7 @@
   {
     "pin": 14
   },
-  "wifi":
+  "webserver":
   {
     "ssid": "LedController",
     "password": "123456789"

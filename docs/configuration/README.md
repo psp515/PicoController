@@ -35,10 +35,20 @@ Schema is example schema and can be configured.
 ![image](https://github.com/psp515/PicoController/assets/69080157/e89f11bb-18a2-498d-9ba6-92698c849342)
 
 Configurables can be found in ```app_settings.json```:
-- Neopixel strip pin - ```strip_pin``` - default pin ```15```
-- Button stip pin - ```button_pin``` - default pin ```14```
+- Neopixel strip pin - ```strip:pin``` - default pin ```15```
+- Button stip pin - ```button:pin``` - default pin ```14```
 
 This should not be changed when device is working.
+
+## Web Server Configuration
+
+Web server is mode of device that allows configuring device without connecting to computer.
+
+Configurables can be found in ```app_settings.json``` in section ```webserver``` :
+- ```ssid``` - ssid under what you will be able to connect with raspberry pi pico
+- ```password``` - password required for connecting with raspberry pi pico
+
+More about web server can be found in its section in [usage documentation](https://github.com/psp515/PicoController/tree/main/docs/usage).
 
 ## Example 3D Project
 

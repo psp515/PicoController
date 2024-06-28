@@ -184,7 +184,7 @@ This mode has more customization options:
 }
 ```
 
-### Configuration Mode
+### Configuration Mode (Web Server)
 
 This mode enables to configure basic device settings like:
 - wifi info
@@ -201,7 +201,7 @@ After restart or plugging in power supply press button to turn this mode (you ha
 
 #### How to Access Configuration Page
 
-In this mode device will be visible as wifi-router named ```LedController```.
+If you have not changed default configuration in app_settings.json web server will be visible as wifi-router named ```LedController```.
 You have to connect to it with password ```123456789```.
 
 After connection configuration page will be available at ```192.168.4.1```.
