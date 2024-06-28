@@ -190,11 +190,49 @@ This mode enables to configure basic device settings like:
 - wifi info
 - mqtt info
 - setting number of LED
-- displaying errors
+- displaying errors - TBA.
+
+After finished configuration you may click restart button on main page.
 
 #### How to turn this mode
 
-After restart or plugging in power supply press button in range of around 2 seconds to turn on this mode.
+After restart or plugging in power supply press button to turn this mode (you have to press it in first 2 seconds after plugging in).
 (If device is on press device button for around 4 seconds to turn on this mode)
 
+#### How to Access Configuration Page
+
+In this mode device will be visible as wifi-router named ```LedController```.
+You have to connect to it with password ```123456789```.
+
+After connection configuration page will be available at ```192.168.4.1```.
+So just open broweser and enter this numbers.
+
 #### Wifi Configuration
+
+On this page user have to set wifi informations like:
+- ssid name - router name
+- wifi password
+
+#### Mqtt Configuration
+
+Here you are able to configure mqtt settings like:
+- url (server) - example:  ```ef57f832f11b4e89960ef452f56e6aa3.s2.eu.hivemq.cloud```
+- port - example:  ```8883```
+- keep_alive - example:  ```30```
+- client name - example:  ```controller``` - currently not used
+- device topic - here will be send updates from device and to device - example:  ```controller```
+- mqtt broker password - example:  ```Abc```
+- mqtt broker username - example:  ```Abc```
+
+#### LED Configuration
+
+This page allows to adjust number of LED int strip for nicer animations.
+Page allows to enter number of led and test it they are properly ligthting.
+
+LED-s will be disabled after clicking back on this page.
+
+#### Errors Page
+
+Page task is to provide simple and quick informations about problems on device like wifi connection lost / invalid credentials etc.
+
+TBA.

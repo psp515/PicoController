@@ -32,6 +32,7 @@ Key Features:
 - Multiple Control Options: Primarily managed through MQTT, with an onboard button for direct interaction.
 - Dynamic Lighting Modes: Experience a variety of lighting effects, fully utilizing the potential of WS2812B LEDs.
 - Configuration Mode: Adjust settings such as LED strip length, Wi-Fi credentials, and MQTT configurations effortlessly.
+
 To facilitate setup, the device comes with a 3D model and detailed assembly instructions provided in [Documentation](https://github.com/psp515/PicoController/tree/main/docs)
 
 ### Built With

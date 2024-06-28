@@ -1,4 +1,4 @@
 {
-  "strip_pin": 18,
-  "button_pin": 18
+  "strip_pin": 14,
+  "button_pin": 15
 }
