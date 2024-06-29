@@ -35,14 +35,48 @@ Schema is example schema and can be configured.
 ![image](https://github.com/psp515/PicoController/assets/69080157/e89f11bb-18a2-498d-9ba6-92698c849342)
 
 Configurables can be found in ```app_settings.json```:
-- Neopixel strip pin - ```strip_pin``` - default pin ```15```
-- Button stip pin - ```button_pin``` - default pin ```14```
+- Neopixel strip pin - ```strip:pin``` - default pin ```15```
+- Button stip pin - ```button:pin``` - default pin ```14```
 
 This should not be changed when device is working.
 
+## Web Server Configuration
+
+Web server is mode of device that allows configuring device without connecting to computer.
+
+Configurables can be found in ```app_settings.json``` in section ```webserver``` :
+- ```ssid``` - ssid under what you will be able to connect with raspberry pi pico
+- ```password``` - password required for connecting with raspberry pi pico
+
+More about web server can be found in its section in [usage documentation](https://github.com/psp515/PicoController/tree/main/docs/usage).
+
 ## Example 3D Project
 
-TBA.
+Be aware that this is example project and may not be suitable for you.
+
+[Pico Controller on Thingiverse](https://www.thingiverse.com/thing:6678379)
+
+### 0.0.1
+Required Parts:
+- Raspberry Pi Pico W
+- Wsb 2812b LEDs
+- 5V Power Supply
+- 5V dc socket with wire 
+- 1 button - [you can find case for button here](https://www.thingiverse.com/thing:5487344)
+- some wires 
+
+Optional Parts
+- 4 M1 Screws
+- Threaded terminal strip 1,5mm2 LPA12-1.5
+
+![image](https://github.com/psp515/PicoController/assets/69080157/b9ef9fa8-5db8-447a-b7a0-b16927f1c517)
+
+![image](https://github.com/psp515/PicoController/assets/69080157/bbf0887e-d09e-42ad-ba7a-66e7f4992fbb)
+
+Knwon Model Problems:
+- it is hard to open casing
+- it is difficult to close casing ig you have hard cables
+- pico falls out of its place sometimes
 
 ## Startup
 

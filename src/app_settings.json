@@ -1,4 +1,15 @@
 {
-  "strip_pin": 14,
-  "button_pin": 15
+  "strip":
+  {
+    "pin": 15
+  },
+  "button" :
+  {
+    "pin": 14
+  },
+  "webserver":
+  {
+    "ssid": "LedController",
+    "password": "123456789"
+  }
 }
