@@ -57,24 +57,26 @@ Be aware that this is example project and may not be suitable for you.
 [Pico Controller on Thingiverse](https://www.thingiverse.com/thing:6678379)
 
 ### 0.0.1
-
 Required Parts:
 - Raspberry Pi Pico W
 - Wsb 2812b LEDs
 - 5V Power Supply
 - 5V dc socket with wire 
-- 1 button
+- 1 button - [you can find case for button here](https://www.thingiverse.com/thing:5487344)
 - some wires 
 
 Optional Parts
 - 4 M1 Screws
 - Threaded terminal strip 1,5mm2 LPA12-1.5
 
-PHOTO
+![image](https://github.com/psp515/PicoController/assets/69080157/b9ef9fa8-5db8-447a-b7a0-b16927f1c517)
 
-Knwon Problems:
+![image](https://github.com/psp515/PicoController/assets/69080157/bbf0887e-d09e-42ad-ba7a-66e7f4992fbb)
+
+Knwon Model Problems:
 - it is hard to open casing
 - it is difficult to close casing ig you have hard cables
+- pico falls out of its place sometimes
 
 ## Startup
 
