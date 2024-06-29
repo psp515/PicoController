@@ -26,14 +26,14 @@
 
 ### About The Project
 
-The Pico Controller is an ARGB LED controller designed for seamless integration and control via MQTT. Additionally, it features an onboard button for manual control. This device offers multiple lighting modes, leveraging the full capabilities of the WS2812B LEDs to create stunning visual effects.
+The Pico Controller is an ARGB LED controller designed for seamless integration and control via MQTT. Additionally, it features an onboard button for manual control. This device offers multiple lighting modes (not yet xD), leveraging the full capabilities of the WS2812B LEDs to create stunning visual effects.
 
 Key Features:
 - Multiple Control Options: Primarily managed through MQTT, with an onboard button for direct interaction.
 - Dynamic Lighting Modes: Experience a variety of lighting effects, fully utilizing the potential of WS2812B LEDs.
 - Configuration Mode: Adjust settings such as LED strip length, Wi-Fi credentials, and MQTT configurations effortlessly.
 
-To facilitate setup, the device comes with a 3D model and detailed assembly instructions provided in [Documentation](https://github.com/psp515/PicoController/tree/main/docs)
+To facilitate setup, the device comes with a 3D model and assembly instructions provided in [Documentation](https://github.com/psp515/PicoController/tree/main/docs)
 
 ### Built With
 
