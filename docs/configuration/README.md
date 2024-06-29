@@ -52,7 +52,29 @@ More about web server can be found in its section in [usage documentation](https
 
 ## Example 3D Project
 
-TBA.
+Be aware that this is example project and may not be suitable for you.
+
+[Pico Controller on Thingiverse](https://www.thingiverse.com/thing:6678379)
+
+### 0.0.1
+
+Required Parts:
+- Raspberry Pi Pico W
+- Wsb 2812b LEDs
+- 5V Power Supply
+- 5V dc socket with wire 
+- 1 button
+- some wires 
+
+Optional Parts
+- 4 M1 Screws
+- Threaded terminal strip 1,5mm2 LPA12-1.5
+
+PHOTO
+
+Knwon Problems:
+- it is hard to open casing
+- it is difficult to close casing ig you have hard cables
 
 ## Startup
 
