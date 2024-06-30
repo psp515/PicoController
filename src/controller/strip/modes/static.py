@@ -2,7 +2,7 @@ import asyncio
 
 from controller.state_manager import State
 from controller.strip.modes.mode import Mode, DEFAULT_DELAY
-from controller.strip.utils.Color import Color, from_hex
+from controller.strip.utils.color import Color, from_hex
 
 
 def default_color(brightness: float):
