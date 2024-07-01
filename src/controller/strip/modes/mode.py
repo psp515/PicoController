@@ -1,4 +1,5 @@
 import asyncio
+from time import ticks_ms
 from controller.strip.utils.color import Color, from_hex
 from utils.logger import Logger
 
@@ -8,7 +9,6 @@ from devices.strip import Strip
 LOOP_DELAY = 1
 DEFAULT_DELAY = 1
 
-import time
 
 def default_color(brightness: float):
     return Color(brightness=brightness, r=255, g=255, b=255)
@@ -71,7 +71,7 @@ class Mode:
             return
 
         for step in range(steps):
-            start = time.ticks_ms()
+            start = ticks_ms()
 
             step_factor = step / (steps - 1)
             reverse_factor = (1 - step_factor)
@@ -93,7 +93,7 @@ class Mode:
                 self.logger.debug(f"Step: {step}")
                 self.logger.debug(f"Current color: {self.strip.neopixel[0]}")
 
-            self.logger.debug(f"Time in ms per frame: {time.ticks_ms() - start}")
+            self.logger.debug(f"Time in ms per frame: {ticks_ms() - start}")
 
             await asyncio.sleep_ms(DEFAULT_DELAY)
 

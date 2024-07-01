@@ -1,5 +1,5 @@
 import asyncio
-import time
+from time import ticks_ms
 
 from controller.strip.modes.mode import Mode, DEFAULT_DELAY
 from controller.strip.utils.color import Color
@@ -37,7 +37,7 @@ class Rgb(Mode):
 
     async def animate(self):
         for j in range(256):
-            start = time.ticks_ms()
+            start = ticks_ms()
             for i in range(self.strip.length):
                 pixel_index = (i * 256 // self.strip.length + j) & 255
                 self.strip.neopixel[i] = self._color_wheel(pixel_index, self.state.brightness).rgb()
@@ -47,9 +47,7 @@ class Rgb(Mode):
             if j % 16 == 0:
                 self.state = await self.state_manager.state()
 
-            stop = time.ticks_ms()
-
-            self.logger.debug(f"Time in ms per frame: {stop - start}")
+            self.logger.debug(f"Time in ms per frame: {ticks_ms() - start}")
 
     @staticmethod
     def _color_wheel(pos, brightness=1.0) -> Color:
