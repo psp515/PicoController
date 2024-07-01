@@ -10,5 +10,7 @@ class Off(Mode):
 
     async def run(self):
         self.logger.debug("Starting off mode.")
+        self.state = await self.state_manager.state()
         await self.animate_to_color()
         self.logger.debug("Off mode finished.")
+
