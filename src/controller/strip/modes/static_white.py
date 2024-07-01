@@ -1,9 +1,5 @@
-import asyncio
-
-from controller.strip.modes.static import Static, default_color
+from controller.strip.modes.mode import Mode
 
 
-class StaticWhite(Static):
-    async def _color(self):
-        state = await self.state_manager.state()
-        return default_color(state.brightness)
+class StaticWhite(Mode):
+    pass
