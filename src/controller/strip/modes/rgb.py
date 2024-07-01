@@ -1,12 +1,13 @@
 import asyncio
 
-from controller.strip.modes.mode import Mode, DEFAULT_DELAY, START_DELAY
+from controller.strip.modes.mode import Mode, DEFAULT_DELAY
 
 
 class Rgb(Mode):
+
     async def run(self):
         self.logger.info("Initializing RGB mode.")
-        await self.animate_to_start_colors()
+        await self.animate_to_color()
 
         self.logger.info("Starting RGB mode.")
         while True:
@@ -39,7 +40,7 @@ class Rgb(Mode):
                 new_color = self._blend_colors(current_color, start_color, blend_factor)
                 self.strip.neopixel[i] = new_color
             self.strip.neopixel.write()
-            await asyncio.sleep_ms(START_DELAY)
+            await asyncio.sleep_ms(DEFAULT_DELAY)
 
     @staticmethod
     def _blend_colors(color1, color2, blend_factor):

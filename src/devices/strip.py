@@ -23,12 +23,16 @@ class Strip:
             logger.info(f"Initializing strip with pin {options.strip_pin} and length {options.length}")
             self.pin = Pin(options.strip_pin, Pin.OUT)
             self._initialized = True
-            self.length = options.length
+            self._length = options.length
             self._neopixel = neopixel.NeoPixel(self.pin, self.length)
 
     @property
     def neopixel(self):
         return self._neopixel
+
+    @property
+    def length(self):
+        return self._length
 
     def test_length(self, length: int):
         if length > MAX_PIXELS:
