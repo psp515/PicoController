@@ -25,13 +25,16 @@ class Mode:
     async def run(self):
         self.logger.info("Starting mode.")
         while True:
-            updates = await self.check_updates()
+            try:
+                updates = await self.check_updates()
 
-            if updates:
-                self.logger.debug("Detected updates.")
-                await self.update()
+                if updates:
+                    self.logger.debug("Detected updates.")
+                    await self.update()
 
-            await asyncio.sleep_ms(LOOP_DELAY)
+                await asyncio.sleep_ms(LOOP_DELAY)
+            except Exception as e:
+                self.logger.error(f"Error in mode: {e}")
 
     async def check_updates(self) -> bool:
         state = await self.state_manager.state()

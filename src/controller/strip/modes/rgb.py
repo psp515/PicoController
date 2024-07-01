@@ -24,7 +24,10 @@ class Rgb(Mode):
 
         self.logger.info("Starting RGB mode.")
         while True:
-            await self.animate()
+            try:
+                await self.animate()
+            except Exception as e:
+                self.logger.error(f"Error in RGB mode: {e}")
 
     def _start_finished(self) -> bool:
         expected = self.color_for_led(0)

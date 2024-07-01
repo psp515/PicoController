@@ -19,8 +19,11 @@ class Loading(Mode):
 
         self.logger.info("Starting RGB mode.")
         while True:
-            self.state = await self.state_manager.state()
-            await self.animate()
+            try:
+                self.state = await self.state_manager.state()
+                await self.animate()
+            except Exception as e:
+                self.logger.error(f"Error in RGB mode: {e}")
 
     def color_for_led(self, n: int) -> Color:
         return OFF_COLOR
