@@ -1,10 +1,10 @@
-from controller.strip.modes.static import Static
+from controller.strip.modes.mode import Mode
 from controller.strip.utils.color import Color
 
 OFF_COLOR = Color(0, 0, 0, 0)
 
 
-class Off(Static):
+class Off(Mode):
     def color_for_led(self, n: int) -> Color:
         return OFF_COLOR
 
