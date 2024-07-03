@@ -1,7 +1,7 @@
 import json
 import asyncio
 
-from configuration.features.mqtt_options import MqttOptions
+from configuration.options.mqtt_options import MqttOptions
 from utils.extensions.dict_extensions import deep_copy
 from utils.logger import Logger
 

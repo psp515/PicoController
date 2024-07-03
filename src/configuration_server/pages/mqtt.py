@@ -1,6 +1,6 @@
 import json
 
-from configuration.features.mqtt_options import MqttOptions
+from configuration.options.mqtt_options import MqttOptions
 from configuration_server.request.enums.status_code import StatusCode
 from configuration_server.request.request import Request
 from configuration_server.request.response import Response

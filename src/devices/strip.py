@@ -2,7 +2,7 @@ import neopixel
 
 from machine import Pin
 
-from configuration.features.strip_options import StripOptions
+from configuration.options.strip_options import StripOptions
 from utils.logger import Logger
 
 MAX_PIXELS = 300

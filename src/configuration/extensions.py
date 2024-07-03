@@ -1,7 +1,7 @@
 from configuration.configuration_manager import ConfigurationManager
-from configuration.features.mqtt_options import MqttOptions
-from configuration.features.strip_options import StripOptions
-from configuration.features.wifi_options import WifiOptions
+from configuration.options.mqtt_options import MqttOptions
+from configuration.options.strip_options import StripOptions
+from configuration.options.wifi_options import WifiOptions
 
 
 def initialize_configuration():

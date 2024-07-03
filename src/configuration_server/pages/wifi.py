@@ -1,6 +1,6 @@
 import json
 
-from configuration.features.wifi_options import WifiOptions
+from configuration.options.wifi_options import WifiOptions
 from configuration_server.request.enums.status_code import StatusCode
 from configuration_server.request.request import Request
 from configuration_server.request.response import Response

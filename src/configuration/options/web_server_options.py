@@ -1,4 +1,4 @@
-from configuration.base_options import BaseOptions
+from configuration.options.options import BaseOptions
 
 DEFAULT_BUTTON_PIN = "14"
 DEFAULT_STRIP_PIN = "18"

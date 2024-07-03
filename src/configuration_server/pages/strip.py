@@ -1,6 +1,6 @@
 import json
 
-from configuration.features.strip_options import StripOptions
+from configuration.options.strip_options import StripOptions
 from devices.strip import Strip, MAX_PIXELS
 from configuration_server.request.enums.status_code import StatusCode
 from configuration_server.request.request import Request

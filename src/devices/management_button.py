@@ -2,7 +2,7 @@ from machine import Pin
 import asyncio
 import time
 
-from configuration.features.button_options import ButtonOptions
+from configuration.options.button_options import ButtonOptions
 from utils.logger import Logger
 
 

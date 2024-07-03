@@ -1,8 +1,8 @@
-from configuration.features.mqtt_options import MqttOptions
+from configuration.options.mqtt_options import MqttOptions
 from mqtt_as import config, MQTTClient
 from utils.logger import Logger
 
-from configuration.features.wifi_options import WifiOptions
+from configuration.options.wifi_options import WifiOptions
 
 
 class MqttFactory:
