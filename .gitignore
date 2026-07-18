@@ -129,3 +129,4 @@ cython_debug/
 
 .idea/
 /src/tmp
+src/config.dev.json
