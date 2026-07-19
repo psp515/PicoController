@@ -8,23 +8,29 @@ It is a MicroPython ARGB LED Controller.
 
 - primarly it is designed to handle WS2812B LED 5V
 - Available communication protocols for configuration
-    - NEC Reveiver
-    - Button on the cover
-    - MQTT Protocol
-    - Web API 
+  - NEC Reveiver
+  - Button on the cover
+  - MQTT Protocol
+  - Web API 
 - Controller Mircopython code should be as simple as possible to understand without complex elements
-    - for that aplication might use python abstractions to abtract elements like modes communications and so on
+  - for that aplication might use python abstractions to abtract elements like modes communications and so on
 - Controller should support multiple Animation Modes and animations should be easilly extensible
 - Configuration should be dynamic - device reflects changes after hitting save on webui or after api call 
 - Configuration should be presited between on and off in .json file (also runtime data like current mode and mode specs)
 - if device will be turned off there should be posted message to mqtt broker about last will
 - provide option whether to tunr on led after powering up 
+- lightinginh modes:
+  - white mode
+  - static color mode
+  - rainbow effect
+  - running few leds around the LEDS
 
 ### Future directions
 
 If introducing helpfull abstraction will not be problematic it is advised to apply this abstraction.
 - Controller might be extended with Web UI
 - in future there will be more like WS2811 LED 12V support
+- introducing more modes 
 
 ### Selected Libraries 
 
@@ -77,6 +83,7 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 - Writes: temp file + `os.rename()` (atomic, protects against corruption).
 - Debounce/batch saves — never write flash per frame or per slider tick.
 - Missing or corrupt file → fall back to built-in defaults and recreate the file.
+- for quick acces keep dict in memory so fields can be easily accessible via `state["value1"]["value2"]`
 
 ## Web API
 
