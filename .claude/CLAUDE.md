@@ -85,6 +85,14 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 - Missing or corrupt file → fall back to built-in defaults and recreate the file.
 - for quick acces keep dict in memory so fields can be easily accessible via `state["value1"]["value2"]`
 
+## Logging
+
+- Use the `Logger` class from `src/logger/` (injected via constructor), never `print()`
+  in application code — output goes through appenders (`ConsoleAppender`, future file appender).
+- Config-driven via the `logging` config section; disabled by default.
+- Message parameters use positional placeholders, formatted lazily (skipped when disabled):
+  `logger.info("wifi", "connected ip {0}", ip)` — no f-strings, no named `{value}` kwargs.
+
 ## Web API
 
 - Async HTTP server (e.g. microdot) as a uasyncio task; JSON request/response.
