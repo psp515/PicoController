@@ -7,7 +7,8 @@ from channels.base import Channel
 
 POLL_MS = 20
 STABLE_POLLS = 2
-LONG_PRESS_MS = 2000
+LONG_PRESS_MS = 1500
+ABORT_MS = 3000
 
 
 class ButtonChannel(Channel):
@@ -48,7 +49,9 @@ class ButtonChannel(Channel):
                 else:
                     held_ms = time.ticks_diff(time.ticks_ms(), pressed_at) if pressed_at is not None else 0
                     self.logger.debug("button", "up after {0}ms", held_ms)
-                    if held_ms >= LONG_PRESS_MS:
+                    if held_ms >= ABORT_MS:
+                        self.logger.debug("button", "held too long, aborted")
+                    elif held_ms >= LONG_PRESS_MS:
                         self.logger.debug("button", "long press, mode -> off")
                         self.state.update({"mode": {"current": "off"}})
                     else:
