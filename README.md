@@ -24,35 +24,17 @@
 
 <br/>
 
-### About The Project
-
-The Pico Controller is an ARGB LED controller designed for seamless integration and control via MQTT. Additionally, it features an onboard button for manual control. This device offers multiple lighting modes (not yet xD), leveraging the full capabilities of the WS2812B LEDs to create stunning visual effects.
-
-Key Features:
-- Multiple Control Options: Primarily managed through MQTT, with an onboard button for direct interaction.
-- Dynamic Lighting Modes: Experience a variety of lighting effects, fully utilizing the potential of WS2812B LEDs.
-- Configuration Mode: Adjust settings such as LED strip length, Wi-Fi credentials, and MQTT configurations effortlessly.
-
-To facilitate setup, the device comes with a 3D model and assembly instructions provided in [Documentation](https://github.com/psp515/PicoController/tree/main/docs)
-
 ### Built With
 
 ![Micro Python](https://img.shields.io/badge/MicroPython-14354C?style=for-the-badge&logo=micropython&logoColor=white&style=flat)
 ![Raspberry Pi](https://img.shields.io/badge/-Raspberry%20Pi%20Pico%20W-C51A4A?style=for-the-badge&logo=Raspberry-Pi&logoColor=white&style=flat)
 ![HiveMq](https://img.shields.io/badge/-HiveMQ-F5F5F5?style=for-the-badge&logo=hivemq&logoColor=yellow&style=flat)
 
+
+### About The Project
+
+Project Under Refactor
+
 ### License
 
 Distributed under the MIT License. See `LICENSE.txt` for more information.
-
-### Contact
-
-<div align="center">
-  <a href="https://www.linkedin.com/in/lukasz-psp515-kolber/">
-    <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" />
-  </a>
-  <a href="https://twitter.com/psp515">
-    <img src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter" />
-  </a>
-</div>
-
