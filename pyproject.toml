@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 110
+extend-exclude = ["lib"]
+
+[tool.ruff.lint]
+# micropython has no `typing`, uses `from module import *` in a couple of vendored
+# places, and imports hardware modules (machine, neopixel, network, ntptime) that
+# don't exist under CPython - ruff never executes code so that's fine as-is.
+select = ["E", "F", "W"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

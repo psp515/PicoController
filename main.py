@@ -2,6 +2,8 @@ import sys
 
 if "lib" not in sys.path:
     sys.path.append("lib")
+if "src" not in sys.path:
+    sys.path.append("src")
 
 import asyncio
 

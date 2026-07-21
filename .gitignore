@@ -14,9 +14,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-!src/lib/
-!src/lib/**
 lib64/
 parts/
 sdist/
@@ -49,6 +46,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache/
 cover/
 
 # Translations
@@ -130,9 +128,5 @@ dmypy.json
 cython_debug/
 
 .idea/
-/src/tmp
-src/config.dev.json
-src/lib/__pycache__/mqtt_as.cpython-314.pyc
-src/lib/ir_rx/__pycache__/__init__.cpython-314.pyc
-src/lib/ir_rx/__pycache__/nec.cpython-314.pyc
-src/lib/microdot/__pycache__/__init__.cpython-314.pyc
+
+/config.dev.json
