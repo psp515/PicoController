@@ -7,11 +7,11 @@ DEFAULTS = {
     },
     "mode": {
         "current": "static",
-        "brightness": 128,
+        "brightness": 50,
         "speed": 10,
+        "on": True,
     },
     "modes": {
-        "off": {},
         "white": {},
         "static": {"color": [255, 120, 30]},
         "rainbow": {},

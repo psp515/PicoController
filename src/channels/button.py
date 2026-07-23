@@ -19,13 +19,6 @@ class ButtonChannel(Channel):
         self._running = False
         self._pin = Pin(state.get("button", "pin", default=3), Pin.IN, Pin.PULL_UP)
 
-    def _next_mode(self):
-        names = sorted(self.state["modes"].keys())
-        current = self.state.mode.current
-        if current in names:
-            return names[(names.index(current) + 1) % len(names)]
-        return names[0]
-
     async def start(self):
         self._running = True
         pin_no = self.state.get("button", "pin", default=3)
@@ -52,12 +45,12 @@ class ButtonChannel(Channel):
                     if held_ms >= ABORT_MS:
                         self.logger.debug("button", "held too long, aborted")
                     elif held_ms >= LONG_PRESS_MS:
-                        self.logger.debug("button", "long press, mode -> off")
-                        self.state.update({"mode": {"current": "off"}})
+                        turn_on = not self.state.mode.on
+                        self.logger.debug("button", "long press, on -> {0}", turn_on)
+                        self.state.update({"mode": {"on": turn_on}})
                     else:
-                        next_mode = self._next_mode()
+                        next_mode = self.state.mode.next_mode()
                         self.logger.debug("button", "short press, mode -> {0}", next_mode)
-                        self.state.update({"mode": {"current": next_mode}})
                     pressed_at = None
             await asyncio.sleep_ms(POLL_MS)
 

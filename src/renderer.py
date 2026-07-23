@@ -21,7 +21,7 @@ class Renderer:
         self._reload = True
 
     def _make_animation(self):
-        name = self.state.mode.current
+        name = self.state.mode.current if self.state.mode.on else "off"
         if name not in MODES:
             self.logger.warning("renderer", "unknown mode {0}, falling back to off", name)
             name = "off"
@@ -41,8 +41,8 @@ class Renderer:
                 frame = 0
             anim.render(buf, self.count, frame)
             brightness = self.state.mode.brightness
-            if brightness < 255:
-                scale = brightness + 1
+            if brightness < 100:
+                scale = (brightness * 255) // 100 + 1
                 for i in range(size):
                     buf[i] = buf[i] * scale >> 8
             self.np.write()

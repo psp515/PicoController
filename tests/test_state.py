@@ -7,15 +7,15 @@ def test_get_returns_default_for_missing_path():
 
 
 def test_update_merges_patch_and_notifies_subscribers():
-    state = StateManager({"mode": {"current": "static", "brightness": 128}})
+    state = StateManager({"mode": {"current": "static", "brightness": 40}})
     seen = []
     state.subscribe(lambda patch: seen.append(patch))
 
-    state.update({"mode": {"brightness": 200}})
+    state.update({"mode": {"brightness": 80}})
 
-    assert state.get("mode", "brightness") == 200
+    assert state.get("mode", "brightness") == 80
     assert state.get("mode", "current") == "static"
-    assert seen == [{"mode": {"brightness": 200}}]
+    assert seen == [{"mode": {"brightness": 80}}]
 
 
 def test_mode_helper_reads_through_state():
@@ -23,3 +23,66 @@ def test_mode_helper_reads_through_state():
     assert state.mode.current == "rainbow"
     assert state.mode.brightness == 10
     assert state.mode.speed == 3
+
+
+def test_update_ignores_unknown_mode_current():
+    state = StateManager({"mode": {"current": "static"}, "modes": {"static": {}, "rainbow": {}}})
+    seen = []
+    state.subscribe(lambda patch: seen.append(patch))
+
+    state.update({"mode": {"current": "sparkle"}})
+
+    assert state.mode.current == "static"
+    assert seen == []
+
+
+def test_update_applies_other_fields_when_mode_current_unknown():
+    state = StateManager(
+        {"mode": {"current": "static", "brightness": 40}, "modes": {"static": {}}}
+    )
+
+    state.update({"mode": {"current": "sparkle", "brightness": 80}})
+
+    assert state.mode.current == "static"
+    assert state.mode.brightness == 80
+
+
+def test_update_allows_known_mode_current():
+    state = StateManager({"mode": {"current": "static"}, "modes": {"static": {}, "rainbow": {}}})
+
+    state.update({"mode": {"current": "rainbow"}})
+
+    assert state.mode.current == "rainbow"
+
+
+def test_update_clamps_brightness_and_speed_to_1_100():
+    state = StateManager({"mode": {"current": "static", "brightness": 50, "speed": 50}})
+
+    state.update({"mode": {"brightness": 500, "speed": -5}})
+
+    assert state.mode.brightness == 100
+    assert state.mode.speed == 1
+
+
+def test_update_ignores_non_numeric_brightness():
+    state = StateManager({"mode": {"current": "static", "brightness": 50}})
+    seen = []
+    state.subscribe(lambda patch: seen.append(patch))
+
+    state.update({"mode": {"brightness": "bright"}})
+
+    assert state.mode.brightness == 50
+    assert seen == []
+
+
+def test_update_ignores_bool_speed():
+    state = StateManager({"mode": {"current": "static", "speed": 50}})
+
+    state.update({"mode": {"speed": True}})
+
+    assert state.mode.speed == 50
+
+
+def test_mode_brightness_defaults_to_100():
+    state = StateManager({"mode": {"current": "static"}})
+    assert state.mode.brightness == 100

@@ -36,7 +36,7 @@ async def main():
     logger.info("main", "starting device {0} version {1}", state.device_id, state.version)
 
     if not state.get("leds", "on_after_boot", default=True):
-        state.data()["mode"]["current"] = "off"
+        state.data()["mode"]["on"] = False
 
     channels = [
         WifiChannel(state, logger),

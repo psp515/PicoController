@@ -13,7 +13,7 @@ RETRY_MS = 15000
 NTP_RETRY_MS = 2000
 
 ALLOWED_SET_KEYS = {
-    "mode": {"current", "brightness", "speed"},
+    "mode": {"current", "brightness", "speed", "on"},
     "leds": {"count"},
 }
 
@@ -108,7 +108,7 @@ class MqttChannel(Channel):
             payload = json.dumps(
                 {
                     "mode": self.state.get("mode"),
-                    "leds": self.state.get("leds"),
+                    "leds": {"count": self.state.get("leds", "count")},
                 }
             )
             try:
