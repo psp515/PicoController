@@ -83,6 +83,6 @@ def test_update_ignores_bool_speed():
     assert state.mode.speed == 50
 
 
-def test_mode_brightness_defaults_to_100():
+def test_mode_brightness_defaults_to_50():
     state = StateManager({"mode": {"current": "static"}})
-    assert state.mode.brightness == 100
+    assert state.mode.brightness == 50

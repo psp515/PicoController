@@ -24,6 +24,7 @@ It is a MicroPython ARGB LED Controller.
   - static color mode
   - rainbow effect
   - running few leds around the LEDS
+- on / off function for device LEDS
 
 ### Future directions
 
@@ -114,6 +115,14 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 - Introduce an abstraction only when it clearly helps extensibility
   (animations, comm channels, LED drivers) — otherwise keep it flat.
 - Don't comment 
+
+## Development
+
+Mirrors `.github/workflows/ci.yml` (lint → build → test), runs on CPython, not on-device.
+
+- Lint: `ruff check src main.py`
+- Compile-check (syntax only, all source files): `python -m compileall -q src main.py`
+- Tests: `pytest` (pythonpath is `src`, configured in `pyproject.toml`; tests live in `tests/`)
 
 ## Session-specific guidance
 
