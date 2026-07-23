@@ -56,7 +56,7 @@ def test_handle_messages_applies_allowed_patch():
     channel, state = make_channel({"mode": {"current": "static", "on": True}})
     channel._client = FakeClient(
         queue_items=[
-            (b"picocontroller/state/update", json.dumps({"mode": {"on": False}}).encode(), False),
+            (b"controller/led/1/state/update", json.dumps({"mode": {"on": False}}).encode(), False),
         ]
     )
 
@@ -68,7 +68,7 @@ def test_handle_messages_applies_allowed_patch():
 
 def test_handle_messages_ignores_invalid_json():
     channel, state = make_channel({"mode": {"current": "static"}})
-    channel._client = FakeClient(queue_items=[(b"picocontroller/state/update", b"not json", False)])
+    channel._client = FakeClient(queue_items=[(b"controller/led/1/state/update", b"not json", False)])
 
     asyncio.run(channel._handle_messages())
 
@@ -79,7 +79,7 @@ def test_handle_messages_ignores_disallowed_keys():
     channel, state = make_channel({"mode": {"current": "static"}})
     channel._client = FakeClient(
         queue_items=[
-            (b"picocontroller/state/update", json.dumps({"wifi": {"password": "hacked"}}).encode(), False),
+            (b"controller/led/1/state/update", json.dumps({"wifi": {"password": "hacked"}}).encode(), False),
         ]
     )
 
@@ -117,7 +117,7 @@ def test_publish_state_sends_full_mode_and_leds_on_change():
     channel, state = make_channel(
         {"mode": {"current": "static", "on": True}, "leds": {"count": 10, "pin": 0}}
     )
-    channel._base = "picocontroller"
+    channel._base = "controller/led/1"
     channel._running = True
     client = FakeClient()
     channel._client = client
@@ -138,7 +138,7 @@ def test_publish_state_sends_full_mode_and_leds_on_change():
 
     assert len(client.published) == 1
     topic, payload, retain, qos = client.published[0]
-    assert topic == "picocontroller/state/full"
+    assert topic == "controller/led/1/state/full"
     assert retain is True
     assert qos == 0
     data = json.loads(payload)

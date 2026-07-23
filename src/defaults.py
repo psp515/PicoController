@@ -23,7 +23,7 @@ DEFAULTS = {
         "port": 1883,
         "user": "",
         "password": "",
-        "base_topic": "picocontroller",
+        "base_topic": "controller/led/1",
         "ssl": False,
         "ssl_params": {},
         "ntp_host": "pool.ntp.org",

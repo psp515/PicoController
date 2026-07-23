@@ -1,0 +1,4 @@
+theme: jekyll-theme-cayman
+title: Pico Controller
+description: MicroPython ARGB LED controller for the Raspberry Pi Pico W
+show_downloads: false

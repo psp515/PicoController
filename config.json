@@ -1,5 +1,5 @@
 {
-    "device": {"name": "PicoController"},
+    "device": {"name": "Pico Controller"},
     "leds": {
         "count": 144,
         "pin": 0,
@@ -23,7 +23,7 @@
         "port": 1883,
         "user": "",
         "password": "",
-        "base_topic": "picocontroller",
+        "base_topic": "controller/led/1",
         "ssl": false,
         "ssl_params": {},
         "ntp_host": "pool.ntp.org"

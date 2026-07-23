@@ -26,7 +26,7 @@ class MqttChannel(Channel):
         self._running = False
         self._client = None
         self._tasks = []
-        self._base = "picocontroller"
+        self._base = "controller/led/1"
         self._changed = asyncio.Event()
 
     def _on_change(self, patch):
@@ -128,7 +128,7 @@ class MqttChannel(Channel):
             await asyncio.sleep_ms(WIFI_POLL_MS)
         if not self._running:
             return
-        self._base = self.state.get("mqtt", "base_topic", default="picocontroller")
+        self._base = self.state.get("mqtt", "base_topic", default="")
         if self.state.get("mqtt", "ssl", default=False):
             while self._running and not self._sync_time():
                 await asyncio.sleep_ms(NTP_RETRY_MS)
