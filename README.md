@@ -1,9 +1,15 @@
 <div align="center">
-  
-  <h1> Pico Controller </h1>
-  <p> Light it Up 2! </p>
-  
+
+  <h1>Pico Controller</h1>
+  <p>MicroPython ARGB LED controller for the Raspberry Pi Pico W</p>
+
   <div>
+    <a href="https://github.com/psp515/PicoController/actions/workflows/ci.yml">
+      <img src="https://img.shields.io/github/actions/workflow/status/psp515/PicoController/ci.yml?branch=main&label=CI" alt="CI status" />
+    </a>
+    <a href="https://psp515.github.io/PicoController/">
+      <img src="https://img.shields.io/github/deployments/psp515/PicoController/github-pages?label=docs" alt="docs" />
+    </a>
     <a href="">
       <img src="https://img.shields.io/github/last-commit/psp515/PicoController" alt="last update" />
     </a>
@@ -20,7 +26,7 @@
       <img src="https://img.shields.io/github/license/psp515/PicoController" alt="license" />
     </a>
   </div>
-</div>  
+</div>
 
 <br/>
 
@@ -30,11 +36,45 @@
 ![Raspberry Pi](https://img.shields.io/badge/-Raspberry%20Pi%20Pico%20W-C51A4A?style=for-the-badge&logo=Raspberry-Pi&logoColor=white&style=flat)
 ![HiveMq](https://img.shields.io/badge/-HiveMQ-F5F5F5?style=for-the-badge&logo=hivemq&logoColor=yellow&style=flat)
 
+## About the project
 
-### About The Project
+PicoController turns a Raspberry Pi Pico W and a WS2812B ARGB LED strip into a
+smart light you can control however suits you in the moment — a remote, the
+button on the enclosure, your phone, or a home automation system.
 
-Project Under Refactor
+- **Turn the LEDs on or off**, and switch between lighting modes (Static color, rainbow etc.)
+- **Adjust brightness and speed**, shared across whichever mode is active.
+- **Remembers your settings.** Mode, brightness, speed, and on/off state all
+  survive a power cycle — the strip comes back exactly as you left it.
+- **Announces when it goes offline**, if you're watching it over MQTT (a
+  retained "last will" message)
 
-### License
+Pick whichever control method's convenient — they all work at the same time and stay in sync:
 
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+- **IR remote** — any standard NEC-protocol remote, pointed at the receiver
+- **The button** on the enclosure cover — short press cycles modes, a longer press toggles the strip on/off
+- **MQTT** — for automation systems
+- **A web/HTTP API** — for a phone browser, a script, or your own UI; get or set the full state as JSON
+
+## Documentation
+
+Full docs live at **[psp515.github.io/PicoController](https://psp515.github.io/PicoController/)**:
+
+- [Manual setup](https://psp515.github.io/PicoController/setup.html) — wiring, flashing MicroPython, copying the project on, and configuring it
+- [Development guide](https://psp515.github.io/PicoController/development.html) — architecture, dev environment setup, and the config file
+- [Channels](https://psp515.github.io/PicoController/channels/) — the input abstraction (IR, button, MQTT, Web API) and how to add a new one
+- [Animations](https://psp515.github.io/PicoController/animations/) — the lighting-mode abstraction and how to add a new one
+
+## Contributing
+
+This is an open-source, hobby-driven project — contributions, bug reports, and
+ideas are all welcome. If you build one, run into an issue, or have a mode or
+channel you'd like to add:
+
+- ⭐ **Star** the repo if you find it useful — it helps others find it too.
+- 🐛 Open an [issue](https://github.com/psp515/PicoController/issues) for bugs or feature requests.
+- 🔀 Fork it and send a pull request — the [Development guide](https://psp515.github.io/PicoController/development.html) covers how the pieces fit together and how to add a new channel or mode without touching the core loop.
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
