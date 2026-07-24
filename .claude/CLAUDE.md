@@ -97,7 +97,6 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 ## Web API
 
 - Async HTTP server (e.g. microdot) as a uasyncio task; JSON request/response.
-- Endpoints modeled after WLED's `/json/state` idea: GET state, POST partial updates.
 - Future: static WebUI served by the same server; keep API and UI serving separate modules.
 
 ## MicroPython constraints
