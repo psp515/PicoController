@@ -12,16 +12,7 @@ button on the enclosure, your phone, or a home automation system.
 ## What it can do
 
 - **Turn the LEDs on or off**,
-- **Switch between lighting modes:**
-
-  | Mode | What you get |
-  |---|---|
-  | Off | Strip off |
-  | White | Full white |
-  | Static color | A single solid color of your choice |
-  | Rainbow | A smooth, continuously cycling rainbow |
-  | Runner | A short trail of light chasing around the strip |
-
+- **Switch between lighting modes:** (Static color, rainbow etc.)
 - **Adjust brightness and speed**, shared across whichever mode is active.
 - **Remembers your settings.** Mode, brightness, speed, and on/off state all
   survive a power cycle — the strip comes back exactly as you left it.
