@@ -50,13 +50,17 @@ class Channel:
 
 ## Built-in channels
 
-| Channel | File | What it does |
-|---|---|---|
-| `WifiChannel` | `src/channels/wifi.py` | Connects to Wi-Fi with exponential backoff, publishes `runtime.wifi.connected`/`ip` |
-| `ButtonChannel` | `src/channels/button.py` | Polls the cover button, debounces in software, cycles modes / toggles on-off |
-| `IrChannel` | `src/channels/ir.py` | NEC IR decoding (via `micropython_ir`), maps received codes to state patches through `ir.codes` in config |
-| `MqttChannel` | `src/channels/mqtt.py` | Async MQTT (via `mqtt_as`), publishes full state retained, applies incoming patches from an allow-listed set of keys — see [MQTT](mqtt.md) for topics/payloads |
-| `WebApiChannel` | `src/channels/webapi.py` | Async HTTP JSON API (via `microdot`): `GET`/`POST /json/state`, `GET /info` — see [Web API](webapi.md) for endpoints/examples |
+- [`WifiChannel`](wifi.md) (`src/channels/wifi.py`) — connects to Wi-Fi with
+  exponential backoff, publishes `runtime.wifi.connected`/`ip`.
+- [`ButtonChannel`](button.md) (`src/channels/button.py`) — polls the cover
+  button, debounces in software, cycles modes / toggles on-off.
+- [`MqttChannel`](mqtt.md) (`src/channels/mqtt.py`) — async MQTT (via
+  `mqtt_as`), publishes full state retained, applies incoming patches from an
+  allow-listed set of keys — see [MQTT](mqtt.md) for topics/payloads.
+
+`IrChannel` (`src/channels/ir.py`) and `WebApiChannel`
+(`src/channels/webapi.py`) exist in the codebase but aren't implemented/
+tested to the point of having their own doc page yet.
 
 ## Adding a new channel
 

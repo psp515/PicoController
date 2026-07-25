@@ -65,7 +65,7 @@ The `src/` code is written so the pure-logic parts (`state.py`, `storage.py`,
 unchanged on regular CPython — that's what the test suite exercises. Code
 that touches hardware (`machine`, `network`, `neopixel`, `microdot`) only runs
 on-device; `tests/conftest.py` stubs the handful of MicroPython-only modules
-(`mqtt_as`, `ntptime`, `time.ticks_ms`/`ticks_diff`) needed to import
+(`mqtt_as`, `machine`, `time.ticks_ms`/`ticks_diff`) needed to import
 `channels/mqtt.py` under test.
 
 Install once:
@@ -146,10 +146,35 @@ two on an actual device — see [Manual setup](setup.md) for setting up
 | `button` | `pin` | GPIO for the cover button |
 | `ir` | `pin`, `codes` | GPIO for the IR receiver; `codes` maps received NEC codes to arbitrary state patches |
 | `logging` | `enabled`, `level` | Disabled by default; `level` is one of `debug`/`info`/`warning`/`error` |
+| `watchdog` | `enabled` | Hardware watchdog (see below); disabled by default, enable on production devices |
 
 `runtime` is a further top-level key that appears once the device is running
 (e.g. `runtime.wifi.connected`/`ip`) — it's written by channels, read like any
 other state, but never persisted to disk.
+
+## Watchdog
+
+With `watchdog.enabled: true`, the heartbeat task in `main.py` arms the
+RP2040's hardware watchdog (`machine.WDT`, 8s timeout — the hardware maximum
+is ~8.3s) and feeds it every 500ms while toggling the onboard LED. If the
+event loop ever stalls — a blocking call that never returns, a crashed
+scheduler, wedged Wi-Fi chip state — the feed stops and the chip hard-resets
+itself within 8 seconds, so a deployed device self-heals instead of hanging
+until someone pulls the plug.
+
+Things to keep in mind:
+
+- **Keep it off during development** (`config.dev.json` sets
+  `"watchdog": {"enabled": false}`). The RP2040 watchdog cannot be disarmed
+  once started — dropping to the REPL (Ctrl-C) stops the heartbeat, so an
+  armed watchdog reboots the board out from under your session 8s later.
+- Any single synchronous operation on the event loop must finish well under
+  the 8s timeout — flash writes and `gc.collect()` are comfortably inside
+  that, but it's another reason every network call must have a bounded
+  timeout (see the NTP sync in `src/channels/mqtt.py`).
+- A watchdog reset looks like a power cycle: the device reboots cleanly,
+  reloads `config.json`, and resumes the persisted mode. The MQTT broker
+  publishes the last-will `"offline"` message if a session was up.
 
 ## Extending the device
 

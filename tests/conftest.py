@@ -22,8 +22,13 @@ if "mqtt_as" not in sys.modules:
     mqtt_as_stub.MQTTClient = _MQTTClientStub
     sys.modules["mqtt_as"] = mqtt_as_stub
 
-if "ntptime" not in sys.modules:
-    ntptime_stub = types.ModuleType("ntptime")
-    ntptime_stub.host = "pool.ntp.org"
-    ntptime_stub.settime = lambda: None
-    sys.modules["ntptime"] = ntptime_stub
+if "machine" not in sys.modules:
+    machine_stub = types.ModuleType("machine")
+
+    class _RTCStub:
+        def datetime(self, value=None):
+            self.value = value
+
+    machine_stub.RTC = _RTCStub
+    machine_stub.unique_id = lambda: b"dev"
+    sys.modules["machine"] = machine_stub

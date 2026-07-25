@@ -7,8 +7,8 @@ from channels.base import Channel
 
 POLL_MS = 20
 STABLE_POLLS = 2
-LONG_PRESS_MS = 1500
-ABORT_MS = 3000
+LONG_PRESS_MS = 1000
+ABORT_MS = 2000
 
 
 class ButtonChannel(Channel):
@@ -48,6 +48,9 @@ class ButtonChannel(Channel):
                         turn_on = not self.state.mode.on
                         self.logger.debug("button", "long press, on -> {0}", turn_on)
                         self.state.update({"mode": {"on": turn_on}})
+                    elif not self.state.mode.on:
+                        self.logger.debug("button", "short press, on -> True")
+                        self.state.update({"mode": {"on": True}})
                     else:
                         next_mode = self.state.mode.next_mode()
                         self.logger.debug("button", "short press, mode -> {0}", next_mode)

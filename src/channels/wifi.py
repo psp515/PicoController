@@ -9,6 +9,7 @@ BACKOFF_MAX_MS = 30000
 CONNECT_TIMEOUT_MS = 15000
 MONITOR_MS = 2000
 IDLE_MS = 60000
+RADIO_RESET_MS = 100
 
 
 class WifiChannel(Channel):
@@ -53,6 +54,9 @@ class WifiChannel(Channel):
             while self._running:
                 await asyncio.sleep_ms(IDLE_MS)
             return
+        self.logger.debug("wifi", "resetting radio")
+        self._wlan.active(False)
+        await asyncio.sleep_ms(RADIO_RESET_MS)
         backoff = BACKOFF_MIN_MS
         while self._running:
             if self._wlan.isconnected():

@@ -7,7 +7,7 @@ if "src" not in sys.path:
 
 import asyncio
 
-from machine import Pin
+from machine import WDT, Pin
 
 from channels.button import ButtonChannel
 from channels.ir import IrChannel
@@ -21,11 +21,21 @@ from state import StateManager
 from storage import Storage
 
 
-async def heartbeat():
+WDT_TIMEOUT_MS = 8000
+HEARTBEAT_MS = 500
+
+
+async def heartbeat(state, logger):
     led = Pin("LED", Pin.OUT)
+    wdt = None
+    if state.get("watchdog", "enabled", default=False):
+        wdt = WDT(timeout=WDT_TIMEOUT_MS)
+        logger.info("main", "watchdog armed, timeout {0}ms", WDT_TIMEOUT_MS)
     while True:
         led.toggle()
-        await asyncio.sleep_ms(500)
+        if wdt:
+            wdt.feed()
+        await asyncio.sleep_ms(HEARTBEAT_MS)
 
 
 async def main():
@@ -52,7 +62,7 @@ async def main():
         logger.debug("main", "starting channel {0}", channel.name)
         asyncio.create_task(channel.start())
 
-    await heartbeat()
+    await heartbeat(state, logger)
 
 
 if __name__ == "__main__":
