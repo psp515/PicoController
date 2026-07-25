@@ -1,9 +1,8 @@
 ---
 layout: default
 title: Development
+nav_order: 3
 ---
-
-[← Back to docs home](index.md)
 
 # Development guide
 

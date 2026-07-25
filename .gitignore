@@ -130,3 +130,9 @@ cython_debug/
 .idea/
 
 /config.dev.json
+
+# Jekyll (docs/)
+docs/_site/
+docs/.jekyll-cache/
+docs/.sass-cache/
+docs/Gemfile.lock

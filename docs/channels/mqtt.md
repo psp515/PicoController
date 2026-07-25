@@ -1,9 +1,9 @@
 ---
 layout: default
 title: MQTT channel
+parent: Channels
+nav_order: 1
 ---
-
-[← Back to Channels](index.md)
 
 # MQTT channel
 

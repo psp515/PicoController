@@ -1,9 +1,9 @@
 ---
 layout: default
 title: Channels
+nav_order: 4
+has_children: true
 ---
-
-[← Back to Development guide](../development.md)
 
 # Channels
 

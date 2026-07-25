@@ -1,9 +1,8 @@
 ---
 layout: default
 title: Animations
+nav_order: 5
 ---
-
-[← Back to Development guide](../development.md)
 
 # Animations
 

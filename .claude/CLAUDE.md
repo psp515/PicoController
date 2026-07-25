@@ -119,9 +119,31 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 
 Mirrors `.github/workflows/ci.yml` (lint → build → test), runs on CPython, not on-device.
 
-- Lint: `ruff check src main.py`
+- Lint: `python -m ruff check src main.py`
 - Compile-check (syntax only, all source files): `python -m compileall -q src main.py`
-- Tests: `pytest` (pythonpath is `src`, configured in `pyproject.toml`; tests live in `tests/`)
+- Tests: `python -m pytest` (pythonpath is `src`, configured in `pyproject.toml`; tests live in `tests/`)
+- Always invoke tools via `python -m` (`ruff`, `pytest`) — bare executables are not on PATH here.
+
+## Documentation (GitHub Pages)
+
+- Docs live in `docs/`, built by Jekyll with the `just-the-docs` theme via
+  `remote_theme: just-the-docs/just-the-docs@v0.10.1` in `docs/_config.yml`
+  (pinned tag — bump deliberately). Published by GitHub Pages from the
+  `docs/` folder (deploy from branch).
+- Local preview (needs Ruby + bundler; `docs/Gemfile` pins the `github-pages` gem):
+  ```
+  cd docs
+  bundle install
+  bundle exec jekyll serve --livereload
+  ```
+  then open http://localhost:4000. First build needs network (remote theme download).
+- Navigation is generated from page front matter: `title` + `nav_order` for
+  top-level pages; section index pages set `has_children: true`; child pages
+  set `parent: <section title>`. New doc page = add front matter, nav updates
+  itself.
+- Theming: stock just-the-docs, no overrides. `color_scheme: dark` in
+  `docs/_config.yml` selects the theme's built-in dark scheme — no
+  `docs/_sass/` or `docs/_includes/` customization.
 
 ## Session-specific guidance
 

@@ -1,9 +1,8 @@
 ---
 layout: default
 title: Manual setup
+nav_order: 2
 ---
-
-[← Back to docs home](index.md)
 
 # Manual setup
 

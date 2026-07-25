@@ -1,6 +1,7 @@
 ---
 layout: default
-title: Pico Controller
+title: Home
+nav_order: 1
 ---
 
 # Pico Controller
