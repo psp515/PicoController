@@ -8,10 +8,10 @@ nav_order: 5
 
 An **animation** is one lighting mode — `off`, `white`, `static`, `rainbow`,
 `runner`. The `Renderer` (`src/renderer.py`) owns a single `uasyncio` loop that
-picks the active animation, calls its `render()` once per frame, applies
-global brightness scaling, and writes the result to the NeoPixel strip. Modes
-never touch `neopixel`/hardware themselves and never read global brightness —
-that's the renderer's job.
+picks the active animation, calls its `render()` once per frame, and writes
+the result to the NeoPixel strip. Modes never touch `neopixel`/hardware
+themselves; each mode is responsible for applying brightness itself (see
+`apply_brightness` below).
 
 ## The `Animation` interface
 
@@ -27,6 +27,9 @@ class Animation:
 
     def render(self, buffer, count, frame):
         pass
+
+    def apply_brightness(self, buffer, count):
+        ...
 ```
 
 - `interval_ms` — delay between frames; the renderer sleeps this long after
@@ -39,6 +42,11 @@ class Animation:
 - `render(buffer, count, frame)` — called every frame; must write `count`
   pixels into `buffer` and return nothing. `frame` is a monotonically
   increasing counter, reset to `0` whenever the mode (re)loads.
+- `apply_brightness(buffer, count)` — scales the whole buffer down by
+  `mode.brightness` (1-100) in place. Call this yourself as the last line of
+  `render()` once you've written raw colors. `off` is the one built-in
+  exception: it fades an already-captured snapshot down to black and is
+  producing final output values directly, so it doesn't call it.
 
 ### Buffer format
 
@@ -48,16 +56,13 @@ bytes. Write it directly rather than allocating a new buffer/list per frame;
 none of the built-in animations allocate inside `render()` except lazily
 once (see `Runner`'s cached `_zeros`).
 
-Don't apply brightness scaling yourself — the renderer scales the whole
-buffer down after `render()` returns, based on `mode.brightness` (1-100).
-
 ## Built-in modes
 
 Registered in `src/animations/registry.py`:
 
 | Mode | File | Params | Notes |
 |---|---|---|---|
-| `off` | `off.py` | — | All pixels off |
+| `off` | `off.py` | `fade_ms` (default `600`) | Fades whatever was last displayed down to black over `fade_ms`, using an eased (quadratic) curve, then holds all pixels off. Entered whenever `mode.on` is `False` or an unknown mode is selected. |
 | `white` | `white.py` | — | Full white, `interval_ms=500` (static image, no need to redraw fast) |
 | `static` | `static.py` | `color: [r, g, b]` | Solid color |
 | `rainbow` | `rainbow.py` | — | Precomputes a 256-step color wheel once; scrolls it using `mode.speed` |
@@ -94,6 +99,7 @@ class MyMode(Animation):
             buffer[i] = self._g      # buffer order is G, R, B
             buffer[i + 1] = self._r
             buffer[i + 2] = self._b
+        self.apply_brightness(buffer, count)
 ```
 
 ### Rules to follow
@@ -102,8 +108,9 @@ class MyMode(Animation):
   Precompute lookup tables etc. in `__init__` (see `Rainbow`'s color wheel),
   and if you need a scratch buffer, allocate it once and cache it (see
   `Runner`'s `_zeros`).
-- Don't apply brightness yourself — the renderer scales the buffer globally
-  after `render()` returns.
+- Call `self.apply_brightness(buffer, count)` as the last line of `render()`
+  once you've written raw colors — it's not automatic. Skip it only if your
+  mode is producing final, already-scaled output directly (see `off`).
 - Read `mode.speed` / `params` defensively with `.get(...)` and a default;
   clamp anything that could be `0` or negative before using it as a divisor
   (see `Rainbow`/`Runner` clamping `speed` to at least `1`).

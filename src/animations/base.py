@@ -7,3 +7,11 @@ class Animation:
 
     def render(self, buffer, count, frame):
         pass
+
+    def apply_brightness(self, buffer, count):
+        brightness = self.mode.brightness
+        if brightness >= 100:
+            return
+        scale = (brightness * 255) // 100 + 1
+        for i in range(count * 3):
+            buffer[i] = buffer[i] * scale >> 8

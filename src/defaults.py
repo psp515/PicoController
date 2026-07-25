@@ -12,6 +12,7 @@ DEFAULTS = {
         "on": True,
     },
     "modes": {
+        "off": {"fade_ms": 600},
         "white": {},
         "static": {"color": [255, 120, 30]},
         "rainbow": {},

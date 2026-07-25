@@ -19,3 +19,4 @@ class Static(Animation):
             buffer[i] = g
             buffer[i + 1] = r
             buffer[i + 2] = b
+        self.apply_brightness(buffer, count)
