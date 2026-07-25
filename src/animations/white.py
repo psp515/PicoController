@@ -7,3 +7,4 @@ class White(Animation):
     def render(self, buffer, count, frame):
         for i in range(count * 3):
             buffer[i] = 255
+        self.apply_brightness(buffer, count)

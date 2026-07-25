@@ -3,6 +3,7 @@ import asyncio
 import machine
 import neopixel
 
+from animations.off import Off
 from animations.registry import MODES
 
 
@@ -27,24 +28,21 @@ class Renderer:
             name = "off"
         self.logger.debug("renderer", "mode -> {0}", name)
         params = self.state.mode.params(name)
-        return MODES[name](self.state.mode, params)
+        anim = MODES[name](self.state.mode, params)
+        if isinstance(anim, Off):
+            anim.fade_from(self.np.buf, self.count)
+        return anim
 
     async def start(self):
         anim = None
         frame = 0
         buf = self.np.buf
-        size = self.count * 3
         while True:
             if self._reload:
                 self._reload = False
                 anim = self._make_animation()
                 frame = 0
             anim.render(buf, self.count, frame)
-            brightness = self.state.mode.brightness
-            if brightness < 100:
-                scale = (brightness * 255) // 100 + 1
-                for i in range(size):
-                    buf[i] = buf[i] * scale >> 8
             self.np.write()
             frame += 1
             await asyncio.sleep_ms(anim.interval_ms)

@@ -30,3 +30,4 @@ class Runner(Animation):
             buffer[i] = self._g
             buffer[i + 1] = self._r
             buffer[i + 2] = self._b
+        self.apply_brightness(buffer, count)

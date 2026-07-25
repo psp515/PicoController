@@ -40,3 +40,4 @@ class Rainbow(Animation):
             buffer[dst] = wheel[src]
             buffer[dst + 1] = wheel[src + 1]
             buffer[dst + 2] = wheel[src + 2]
+        self.apply_brightness(buffer, count)
