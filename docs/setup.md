@@ -67,8 +67,9 @@ MicroPython.
   pull-up resistor is needed — the pin reads high when open, low when pressed.
 - Debounced entirely in software by polling every 20ms and requiring two
   stable consecutive reads before registering an edge.
-- Press semantics (see `src/channels/button.py`): short press cycles to the
-  next mode, a ~1.5s+ hold toggles on/off, holding past ~3s aborts the action.
+- Press semantics (see the [Button channel](channels/button.md)): a short
+  press turns the device on when it's off, or cycles to the next mode when
+  it's on; a ~1s hold toggles on/off; holding past ~2s aborts the action.
 
 ## 3. Copy the project onto the device
 
@@ -104,6 +105,9 @@ To configure it upfront instead, create `config.json` with the same shape as
   (leave `mqtt.server` empty to disable MQTT entirely)
 - `leds.count` / `leds.pin` to match your strip
 - `button.pin` / `ir.pin` if wired to non-default GPIOs
+- `watchdog.enabled: true` for a deployed device — arms the hardware watchdog
+  so the board auto-reboots if the firmware ever hangs (leave it `false` while
+  developing; see the [Development guide](development.md#watchdog))
 
 Copy that `config.json` onto the device alongside `main.py`/`src`/`lib`.
 

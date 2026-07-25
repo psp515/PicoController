@@ -1,8 +1,11 @@
 import asyncio
 import gc
 import json
+import socket
+import struct
+import time
 
-import ntptime
+import machine
 from mqtt_as import MQTTClient, config as mqtt_config
 
 from channels.base import Channel
@@ -11,6 +14,9 @@ IDLE_MS = 60000
 WIFI_POLL_MS = 500
 RETRY_MS = 15000
 NTP_RETRY_MS = 2000
+NTP_PORT = 123
+NTP_TIMEOUT_S = 2
+NTP_DELTA = 3155673600 if time.gmtime(0)[0] == 2000 else 2208988800
 
 ALLOWED_SET_KEYS = {
     "mode": {"current", "brightness", "speed", "on"},
@@ -53,14 +59,30 @@ class MqttChannel(Channel):
         return MQTTClient(cfg)
 
     def _sync_time(self):
-        ntptime.host = self.state.get("mqtt", "ntp_host", default="pool.ntp.org")
+        host = self.state.get("mqtt", "ntp_host", default="pool.ntp.org")
+        query = bytearray(48)
+        query[0] = 0x1B
+        sock = None
         try:
-            ntptime.settime()
-            self.logger.info("mqtt", "time synced via {0}", ntptime.host)
-            return True
+            addr = socket.getaddrinfo(host, NTP_PORT)[0][-1]
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(NTP_TIMEOUT_S)
+            sock.sendto(query, addr)
+            msg = sock.recv(48)
         except OSError as e:
-            self.logger.warning("mqtt", "ntp sync via {0} failed: {1}", ntptime.host, e)
+            self.logger.warning("mqtt", "ntp sync via {0} failed: {1}", host, e)
             return False
+        finally:
+            if sock:
+                sock.close()
+        if len(msg) < 44:
+            self.logger.warning("mqtt", "ntp sync via {0} failed: short response", host)
+            return False
+        secs = struct.unpack("!I", msg[40:44])[0] - NTP_DELTA
+        tm = time.gmtime(secs)
+        machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
+        self.logger.info("mqtt", "time synced via {0}", host)
+        return True
 
     async def _handle_up(self):
         while self._running:

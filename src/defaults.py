@@ -31,4 +31,5 @@ DEFAULTS = {
     "logging": {"enabled": False, "level": "info"},
     "button": {"pin": 3},
     "ir": {"pin": 2},
+    "watchdog": {"enabled": False},
 }

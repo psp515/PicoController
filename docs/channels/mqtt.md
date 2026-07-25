@@ -2,7 +2,7 @@
 layout: default
 title: MQTT channel
 parent: Channels
-nav_order: 1
+nav_order: 3
 ---
 
 # MQTT channel
@@ -10,6 +10,30 @@ nav_order: 1
 Implemented in `src/channels/mqtt.py`. Only active if `mqtt.server` is set in
 the config — otherwise `start()` idles forever (`asyncio.sleep_ms(IDLE_MS)` in
 a loop) and never touches the network.
+
+## What you can do with it
+
+MQTT is the remote-control channel: anything that can talk to your MQTT
+broker — a phone app, Home Assistant, Node-RED, a command line — can control
+the device from anywhere on the network. Where the [button](button.md) gives
+you two gestures, MQTT gives you the same controls and more:
+
+- **Turn the lights on or off, switch the lighting mode, adjust brightness or
+  speed** — all by publishing a small JSON patch to one topic; see
+  [3.1](#31-message-examples-stateupdate) for the exact shape and copy-paste
+  examples.
+- **See the current state** — the device publishes its full state, retained,
+  whenever anything changes, so a fresh subscriber gets it immediately; see
+  [3.2](#32-message-examples-statefull).
+- **Know if the device is alive** — an online/offline status updates
+  automatically, even if the device loses power ungracefully; see
+  [3.3](#33-last-will--online-status).
+
+Settings that could break the device remotely (Wi-Fi credentials, pins,
+broker address) are deliberately **not** controllable over MQTT — see the
+[allow-list](#311-allow-list-for-the-update-topic). The rest of this page is
+the technical detail: how the connection works and what exactly travels on
+each topic.
 
 ## 1. Non-blocking, via `mqtt_as`
 
