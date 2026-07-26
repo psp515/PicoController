@@ -23,6 +23,12 @@ class Renderer:
     def _on_change(self, patch):
         self._reload = True
 
+    def _resize(self, count):
+        pin = self.state.get("leds", "pin", default=0)
+        self.np = neopixel.NeoPixel(machine.Pin(pin), count)
+        self.count = count
+        self.logger.info("renderer", "leds count changed to {0}", count)
+
     def _make_animation(self):
         name = self.state.mode.current if self.state.mode.on else "off"
         if name not in MODES:
@@ -60,8 +66,12 @@ class Renderer:
     async def start(self):
         anim = None
         frame = 0
-        buf = self.np.buf
         while True:
+            new_count = self.state.get("leds", "count", default=self.count)
+            if new_count != self.count:
+                self._resize(new_count)
+                self._reload = True
+            buf = self.np.buf
             if self._reload:
                 self._reload = False
                 anim = self._make_animation()

@@ -94,3 +94,24 @@ def test_start_tiles_pixel_buffer_for_compatible_mode():
     segment = bytes(buf[0:6])
     assert bytes(buf[6:12]) == segment
     assert bytes(buf[12:18]) == segment
+
+
+def test_start_resizes_pixel_buffer_when_leds_count_changes():
+    renderer, state = make_renderer(count=6, mode_current="rainbow")
+
+    async def run_two_frames():
+        task = asyncio.create_task(renderer.start())
+        await asyncio.sleep(0.01)
+        state.update({"leds": {"count": 10}})
+        await asyncio.sleep(0.08)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    asyncio.run(run_two_frames())
+
+    assert renderer.count == 10
+    assert renderer.np.n == 10
+    assert len(renderer.np.buf) == 30
