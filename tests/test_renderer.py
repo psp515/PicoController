@@ -12,11 +12,18 @@ def make_renderer(count=12, segmenting=None, mode_current="rainbow"):
             "pin": 0,
             "segmenting": segmenting or {"enabled": False, "length": 2},
         },
-        "mode": {"current": mode_current, "brightness": 100, "speed": 10, "on": True},
+        "mode": {
+            "current": mode_current,
+            "brightness": 100,
+            "speed": 10,
+            "on": True,
+            "color": [10, 20, 30],
+            "direction": "forward",
+        },
         "modes": {
             "rainbow": {},
-            "static": {"color": [10, 20, 30]},
-            "runner": {"color": [9, 8, 7], "length": 1},
+            "static": {},
+            "runner": {"length": 1},
         },
     }
     state = StateManager(data)
@@ -94,6 +101,42 @@ def test_start_tiles_pixel_buffer_for_compatible_mode():
     segment = bytes(buf[0:6])
     assert bytes(buf[6:12]) == segment
     assert bytes(buf[12:18]) == segment
+
+
+def test_reverse_mirrors_pixel_triples_in_place():
+    renderer, _ = make_renderer(count=3)
+    buf = renderer.np.buf
+    buf[:] = bytes([1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+    renderer._reverse(buf)
+
+    assert bytes(buf) == bytes([7, 8, 9, 4, 5, 6, 1, 2, 3])
+
+
+def test_start_reverses_output_when_direction_backward():
+    forward, _ = make_renderer(count=6, mode_current="runner")
+    backward, state = make_renderer(count=6, mode_current="runner")
+    state.update({"mode": {"direction": "backward"}})
+
+    async def run_one_frame(renderer):
+        task = asyncio.create_task(renderer.start())
+        await asyncio.sleep(0.01)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    asyncio.run(run_one_frame(forward))
+    asyncio.run(run_one_frame(backward))
+
+    fwd = forward.np.buf
+    bwd = backward.np.buf
+    assert bytes(fwd[0:3]) == bytes([20, 10, 30])
+    for i in range(6):
+        src = i * 3
+        dst = (5 - i) * 3
+        assert bytes(fwd[src : src + 3]) == bytes(bwd[dst : dst + 3])
 
 
 def test_start_resizes_pixel_buffer_when_leds_count_changes():

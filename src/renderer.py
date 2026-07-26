@@ -29,11 +29,16 @@ class Renderer:
         self.count = count
         self.logger.info("renderer", "leds count changed to {0}", count)
 
-    def _make_animation(self):
+    def _mode_name(self):
         name = self.state.mode.current if self.state.mode.on else "off"
         if name not in MODES:
             self.logger.warning("renderer", "unknown mode {0}, falling back to off", name)
             name = "off"
+        return name
+
+    def _make_animation(self, name=None):
+        if name is None:
+            name = self._mode_name()
         self.logger.debug("renderer", "mode -> {0}", name)
         params = self.state.mode.params(name)
         anim = MODES[name](self.state.mode, params)
@@ -63,8 +68,20 @@ class Renderer:
             buf[pos : pos + chunk] = buf[0:chunk]
             pos += chunk
 
+    def _reverse(self, buf):
+        left = 0
+        right = (self.count - 1) * 3
+        while left < right:
+            for k in range(3):
+                tmp = buf[left + k]
+                buf[left + k] = buf[right + k]
+                buf[right + k] = tmp
+            left += 3
+            right -= 3
+
     async def start(self):
         anim = None
+        anim_name = None
         frame = 0
         while True:
             new_count = self.state.get("leds", "count", default=self.count)
@@ -74,12 +91,17 @@ class Renderer:
             buf = self.np.buf
             if self._reload:
                 self._reload = False
-                anim = self._make_animation()
-                frame = 0
+                name = self._mode_name()
+                anim = self._make_animation(name)
+                if name != anim_name:
+                    frame = 0
+                anim_name = name
             seg_count = self._segment_count(anim)
             anim.render(buf, seg_count, frame)
             if seg_count < self.count:
                 self._tile(buf, seg_count)
+            if self.state.mode.direction == "backward" and not isinstance(anim, Off):
+                self._reverse(buf)
             self.np.write()
             frame += 1
             await asyncio.sleep_ms(anim.interval_ms)

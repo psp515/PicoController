@@ -40,17 +40,28 @@ cares which channel triggered a change.
 
 - **`StateManager`** (`src/state.py`) holds the entire config + runtime state
   as a plain dict, with a small `Mode` helper for the frequently-read fields
-  (`current`, `brightness`, `speed`, `on`). `update(patch)` merges a patch in,
-  validates/clamps mode fields (e.g. brightness/speed are clamped to 1-100),
-  persists it (debounced), and notifies subscribers — including the renderer.
+  (`current`, `brightness`, `speed`, `on`, `color`, `direction`). `update(patch)` merges a patch in,
+  validates/clamps it, persists it (debounced), and notifies subscribers —
+  including the renderer. Validation is per-section: a `VALIDATORS` dict maps
+  a top-level key (`mode`, `leds`) to a small function
+  (`_validate_mode`/`_validate_leds`) that only inspects/clamps the fields it
+  owns (e.g. `mode.brightness`/`speed` to 1-100, `leds.count` to a floor of 1,
+  `leds.segmenting.length` to a floor of 2) and leaves everything else in the
+  patch untouched. Adding validation for a new section means writing one such
+  function and registering it in `VALIDATORS` — `update()` itself doesn't
+  change. `update()` only validates the *patch* passed to it — see
+  `revalidate()` below for the boot-time gap that leaves.
 - **Channels** (`src/channels/`) are the only things allowed to call
   `state.update(...)`. See [Channels](channels/index.md) for the interface and
   how to add a new one.
 - **Renderer** (`src/renderer.py`) watches the state for changes, instantiates
   the active animation from a mode registry, and renders it into a
   preallocated NeoPixel buffer every frame, applying global brightness
-  scaling. See [Animations](animations/index.md) for the interface and how to
-  add a new mode.
+  scaling and (optionally) [segmenting](animations/index.md#segmenting). It
+  also re-checks `leds.count` every frame and reallocates the NeoPixel buffer
+  on the fly if it changed — so the LED count is one more thing you can
+  change at runtime without a reboot. See [Animations](animations/index.md)
+  for the interface and how to add a new mode.
 - **Storage** (`src/storage.py`) loads the config file on boot, merging over
   built-in defaults, and autosaves changes back with a debounce + atomic
   `os.rename()` write. Details below.
@@ -134,14 +145,37 @@ two on an actual device — see [Manual setup](setup.md) for setting up
 - If the file is missing or fails to parse as JSON, `Storage` falls back to
   `DEFAULTS` and immediately recreates the file.
 
+### Validating data loaded from disk
+
+`StateManager.update(patch)` only validates the *patch* it's given — it never
+re-checks values already sitting in `self._data`. That matters at boot:
+`main.py` builds `StateManager(storage.load())` directly from whatever's in
+`config.json`, bypassing `update()` entirely, so a value that's out of range
+(hand-edited file, a value written by an older version of the code before a
+clamp existed, a corrupted write) would otherwise load verbatim and keep
+reloading verbatim every reboot — it only gets fixed if some later patch
+happens to touch that exact field again.
+
+`StateManager.revalidate()` closes that gap: it runs every function in
+`VALIDATORS` against whatever's currently loaded (not a patch), corrects any
+section that comes back different, and marks `state.changed` so the fix gets
+autosaved back to `config.json` instead of recurring every boot. `main.py`
+calls it once, right after `state.set_logger(logger)` (so a correction is
+actually logged instead of happening silently before the logger exists):
+
+```python
+state.set_logger(logger)
+state.revalidate()
+```
+
 ### Top-level keys
 
 | Key | Fields | Notes |
 |---|---|---|
 | `device` | `name` | Display name only |
-| `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count`/`pin` describe the physical strip; `on_after_boot` controls whether it lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
-| `mode` | `current`, `brightness`, `speed`, `on` | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), and on/off |
-| `modes` | one entry per mode name | Each mode's own params, e.g. `static: {"color": [r, g, b]}`, `runner: {"color": [...], "length": n}` — see [Animations](animations/index.md) |
+| `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count` is read fresh every frame by the `Renderer`, which reallocates the NeoPixel buffer if it changed — so it's changeable at runtime, no reboot needed (floor of 1, clamped in `StateManager`); `pin` only takes effect on the next resize/reboot; `on_after_boot` controls whether the strip lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
+| `mode` | `current`, `brightness`, `speed`, `on`, `color`, `direction` | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), on/off, global `color: [r, g, b]` (each 0-255, clamped) used by color-driven modes, and `direction` (`"forward"`/`"backward"`) — `"backward"` mirrors the rendered strip so animations run from the far end |
+| `modes` | one entry per mode name | Each mode's own params, e.g. `runner: {"length": n}`, `off: {"fade_ms": n}` — see [Animations](animations/index.md) |
 | `wifi` | `ssid`, `password` | Empty `ssid` disables Wi-Fi (and everything that depends on it) |
 | `mqtt` | `server`, `port`, `user`, `password`, `base_topic`, `ssl`, `ssl_params`, `ntp_host` | Empty `server` disables MQTT entirely; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting |
 | `button` | `pin` | GPIO for the cover button |

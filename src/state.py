@@ -6,6 +6,7 @@ from storage import merge
 VERSION = "2.0.0"
 
 MODE_RANGES = {"brightness": (1, 100), "speed": (1, 100)}
+MODE_DIRECTIONS = ("forward", "backward")
 SEGMENT_LENGTH_MIN = 2
 LEDS_COUNT_MIN = 1
 
@@ -34,6 +35,22 @@ def _validate_mode(data, mode_patch, logger):
             del mode_patch[key]
         elif value < lo or value > hi:
             mode_patch[key] = max(lo, min(hi, value))
+    if "direction" in mode_patch and mode_patch["direction"] not in MODE_DIRECTIONS:
+        if logger:
+            logger.warning("state", "invalid direction {0}, ignoring", mode_patch["direction"])
+        del mode_patch["direction"]
+    if "color" in mode_patch:
+        color = mode_patch["color"]
+        if (
+            not isinstance(color, list)
+            or len(color) != 3
+            or any(isinstance(c, bool) or not isinstance(c, (int, float)) for c in color)
+        ):
+            if logger:
+                logger.warning("state", "invalid color {0}, ignoring", color)
+            del mode_patch["color"]
+        else:
+            mode_patch["color"] = [max(0, min(255, int(c))) for c in color]
     return mode_patch
 
 
@@ -107,6 +124,14 @@ class Mode:
     @property
     def on(self):
         return self._state.get("mode", "on", default=True)
+
+    @property
+    def color(self):
+        return self._state.get("mode", "color", default=[255, 255, 255])
+
+    @property
+    def direction(self):
+        return self._state.get("mode", "direction", default="forward")
 
     def params(self, name=None):
         if name is None:

@@ -83,6 +83,46 @@ def test_update_ignores_bool_speed():
     assert state.mode.speed == 50
 
 
+def test_update_allows_valid_color_and_clamps_components():
+    state = StateManager({"mode": {"current": "static", "color": [1, 2, 3]}})
+
+    state.update({"mode": {"color": [300, -5, 128]}})
+
+    assert state.mode.color == [255, 0, 128]
+
+
+def test_update_ignores_malformed_color():
+    state = StateManager({"mode": {"current": "static", "color": [1, 2, 3]}})
+
+    state.update({"mode": {"color": [255, 255]}})
+    state.update({"mode": {"color": "red"}})
+    state.update({"mode": {"color": [255, True, 0]}})
+
+    assert state.mode.color == [1, 2, 3]
+
+
+def test_update_allows_valid_direction():
+    state = StateManager({"mode": {"current": "static", "direction": "forward"}})
+
+    state.update({"mode": {"direction": "backward"}})
+
+    assert state.mode.direction == "backward"
+
+
+def test_update_ignores_unknown_direction():
+    state = StateManager({"mode": {"current": "static", "direction": "forward"}})
+
+    state.update({"mode": {"direction": "sideways"}})
+
+    assert state.mode.direction == "forward"
+
+
+def test_mode_color_and_direction_defaults():
+    state = StateManager({"mode": {"current": "static"}})
+    assert state.mode.color == [255, 255, 255]
+    assert state.mode.direction == "forward"
+
+
 def test_mode_brightness_defaults_to_50():
     state = StateManager({"mode": {"current": "static"}})
     assert state.mode.brightness == 50

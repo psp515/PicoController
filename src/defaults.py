@@ -11,13 +11,15 @@ DEFAULTS = {
         "brightness": 50,
         "speed": 10,
         "on": True,
+        "color": [255, 120, 30],
+        "direction": "forward",
     },
     "modes": {
         "off": {"fade_ms": 600},
         "white": {},
-        "static": {"color": [255, 120, 30]},
+        "static": {},
         "rainbow": {},
-        "runner": {"color": [0, 80, 255], "length": 5},
+        "runner": {"length": 5},
     },
     "wifi": {"ssid": "", "password": ""},
     "mqtt": {

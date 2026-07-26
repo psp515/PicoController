@@ -1,13 +1,13 @@
-from animations.base import Animation
+from animations.base import Animation, WIPE_INTERVAL_MS
 
 
 class Static(Animation):
-    interval_ms = 500
+    interval_ms = WIPE_INTERVAL_MS
     segmenting_compatible = False
 
     def __init__(self, mode, params):
         super().__init__(mode, params)
-        color = params.get("color", [255, 255, 255])
+        color = mode.color
         self._r = color[0]
         self._g = color[1]
         self._b = color[2]
@@ -21,3 +21,7 @@ class Static(Animation):
             buffer[i + 1] = r
             buffer[i + 2] = b
         self.apply_brightness(buffer, count)
+        if self.apply_wipe(buffer, count, frame):
+            self.interval_ms = WIPE_INTERVAL_MS
+        else:
+            self.interval_ms = 500
