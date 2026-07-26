@@ -6,6 +6,8 @@ import neopixel
 from animations.off import Off
 from animations.registry import MODES
 
+SEGMENT_LENGTH_MIN = 2
+
 
 class Renderer:
     def __init__(self, state, logger):
@@ -33,6 +35,28 @@ class Renderer:
             anim.fade_from(self.np.buf, self.count)
         return anim
 
+    def _segment_count(self, anim):
+        if not anim.segmenting_compatible:
+            return self.count
+        segmenting = self.state.get("leds", "segmenting", default={})
+        if not segmenting.get("enabled"):
+            return self.count
+        length = segmenting.get("length", SEGMENT_LENGTH_MIN)
+        if length < SEGMENT_LENGTH_MIN:
+            length = SEGMENT_LENGTH_MIN
+        if length >= self.count:
+            return self.count
+        return length
+
+    def _tile(self, buf, seg_count):
+        seg_size = seg_count * 3
+        total = self.count * 3
+        pos = seg_size
+        while pos < total:
+            chunk = min(seg_size, total - pos)
+            buf[pos : pos + chunk] = buf[0:chunk]
+            pos += chunk
+
     async def start(self):
         anim = None
         frame = 0
@@ -42,7 +66,10 @@ class Renderer:
                 self._reload = False
                 anim = self._make_animation()
                 frame = 0
-            anim.render(buf, self.count, frame)
+            seg_count = self._segment_count(anim)
+            anim.render(buf, seg_count, frame)
+            if seg_count < self.count:
+                self._tile(buf, seg_count)
             self.np.write()
             frame += 1
             await asyncio.sleep_ms(anim.interval_ms)

@@ -20,7 +20,7 @@ NTP_DELTA = 3155673600 if time.gmtime(0)[0] == 2000 else 2208988800
 
 ALLOWED_SET_KEYS = {
     "mode": {"current", "brightness", "speed", "on"},
-    "leds": {"count"},
+    "leds": {"count", "segmenting"},
 }
 
 
@@ -130,7 +130,10 @@ class MqttChannel(Channel):
             payload = json.dumps(
                 {
                     "mode": self.state.get("mode"),
-                    "leds": {"count": self.state.get("leds", "count")},
+                    "leds": {
+                        "count": self.state.get("leds", "count"),
+                        "segmenting": self.state.get("leds", "segmenting"),
+                    },
                 }
             )
             try:

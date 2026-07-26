@@ -86,3 +86,27 @@ def test_update_ignores_bool_speed():
 def test_mode_brightness_defaults_to_50():
     state = StateManager({"mode": {"current": "static"}})
     assert state.mode.brightness == 50
+
+
+def test_update_clamps_segmenting_length_to_minimum():
+    state = StateManager({"leds": {"count": 100, "segmenting": {"enabled": True, "length": 10}}})
+
+    state.update({"leds": {"segmenting": {"length": 1}}})
+
+    assert state.get("leds", "segmenting", "length") == 2
+
+
+def test_update_ignores_non_numeric_segmenting_length():
+    state = StateManager({"leds": {"count": 100, "segmenting": {"enabled": True, "length": 10}}})
+
+    state.update({"leds": {"segmenting": {"length": "many"}}})
+
+    assert state.get("leds", "segmenting", "length") == 10
+
+
+def test_update_allows_valid_segmenting_length():
+    state = StateManager({"leds": {"count": 100, "segmenting": {"enabled": False, "length": 2}}})
+
+    state.update({"leds": {"segmenting": {"enabled": True, "length": 8}}})
+
+    assert state.get("leds", "segmenting") == {"enabled": True, "length": 8}

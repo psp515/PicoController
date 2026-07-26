@@ -6,6 +6,7 @@ from storage import merge
 VERSION = "2.0.0"
 
 MODE_RANGES = {"brightness": (1, 100), "speed": (1, 100)}
+SEGMENT_LENGTH_MIN = 2
 
 try:
     import binascii
@@ -128,6 +129,20 @@ class StateManager(BaseState):
                 patch["mode"] = mode_patch
             else:
                 del patch["mode"]
+        leds_patch = patch.get("leds")
+        if isinstance(leds_patch, dict) and isinstance(leds_patch.get("segmenting"), dict):
+            segmenting_patch = dict(leds_patch["segmenting"])
+            length = segmenting_patch.get("length")
+            if length is not None:
+                if isinstance(length, bool) or not isinstance(length, (int, float)):
+                    if self.logger:
+                        self.logger.warning("state", "invalid segmenting length {0}, ignoring", length)
+                    del segmenting_patch["length"]
+                elif length < SEGMENT_LENGTH_MIN:
+                    segmenting_patch["length"] = SEGMENT_LENGTH_MIN
+            patch = dict(patch)
+            patch["leds"] = dict(leds_patch)
+            patch["leds"]["segmenting"] = segmenting_patch
         if not patch:
             return
         merge(self._data, patch)

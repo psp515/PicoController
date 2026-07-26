@@ -3,6 +3,7 @@ from animations.base import Animation
 
 class White(Animation):
     interval_ms = 500
+    segmenting_compatible = False
 
     def render(self, buffer, count, frame):
         for i in range(count * 3):

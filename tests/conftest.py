@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import time
 import types
@@ -8,6 +9,11 @@ if not hasattr(time, "ticks_ms"):
     time.ticks_ms = lambda: int(time.monotonic() * 1000)
 if not hasattr(time, "ticks_diff"):
     time.ticks_diff = lambda a, b: a - b
+
+# uasyncio-only helper used by src/renderer.py. Patched onto the real
+# `asyncio` module so CPython can import and exercise that code under test.
+if not hasattr(asyncio, "sleep_ms"):
+    asyncio.sleep_ms = lambda ms: asyncio.sleep(ms / 1000)
 
 # channels/mqtt.py imports these MicroPython-only libraries at module level.
 # Stub them so CPython can import and exercise that code under test.
@@ -29,6 +35,28 @@ if "machine" not in sys.modules:
         def datetime(self, value=None):
             self.value = value
 
+    class _PinStub:
+        def __init__(self, pin, *args, **kwargs):
+            self.pin = pin
+
     machine_stub.RTC = _RTCStub
     machine_stub.unique_id = lambda: b"dev"
+    machine_stub.Pin = _PinStub
     sys.modules["machine"] = machine_stub
+
+# renderer.py imports neopixel, a MicroPython-only driver. Stub it with a
+# bytearray-backed buffer so CPython can exercise the renderer's tiling logic.
+if "neopixel" not in sys.modules:
+    neopixel_stub = types.ModuleType("neopixel")
+
+    class _NeoPixelStub:
+        def __init__(self, pin, n, bpp=3):
+            self.pin = pin
+            self.n = n
+            self.buf = bytearray(n * bpp)
+
+        def write(self):
+            pass
+
+    neopixel_stub.NeoPixel = _NeoPixelStub
+    sys.modules["neopixel"] = neopixel_stub

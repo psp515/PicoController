@@ -115,7 +115,10 @@ def test_handle_up_subscribes_to_state_update_and_announces_online():
 
 def test_publish_state_sends_full_mode_and_leds_on_change():
     channel, state = make_channel(
-        {"mode": {"current": "static", "on": True}, "leds": {"count": 10, "pin": 0}}
+        {
+            "mode": {"current": "static", "on": True},
+            "leds": {"count": 10, "pin": 0, "segmenting": {"enabled": False, "length": 5}},
+        }
     )
     channel._base = "controller/led/1"
     channel._running = True
@@ -143,4 +146,4 @@ def test_publish_state_sends_full_mode_and_leds_on_change():
     assert qos == 0
     data = json.loads(payload)
     assert data["mode"] == {"current": "static", "on": True}
-    assert data["leds"] == {"count": 10}
+    assert data["leds"] == {"count": 10, "segmenting": {"enabled": False, "length": 5}}
