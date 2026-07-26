@@ -20,6 +20,7 @@ Defined in `src/animations/base.py`:
 ```python
 class Animation:
     interval_ms = 40
+    segmenting_compatible = True
 
     def __init__(self, mode, params):
         self.mode = mode
@@ -35,13 +36,20 @@ class Animation:
 - `interval_ms` — delay between frames; the renderer sleeps this long after
   each `render()` call. Override per-class, or compute dynamically in
   `__init__` from `mode.speed` (see `Runner`).
+- `segmenting_compatible` — whether this mode may be split into repeating
+  `leds.segmenting.length`-LED blocks when segmenting is enabled; see
+  [Segmenting](#segmenting) below. Defaults to `True`; override to `False` for
+  modes where segmenting wouldn't change anything (a solid fill) or wouldn't
+  make sense (a single trail chasing the whole strip).
 - `mode` — the shared `Mode` helper (`src/state.py`), giving read access to
   `mode.current` / `mode.brightness` / `mode.speed` / `mode.on`.
 - `params` — this mode's own config dict, e.g. `{"color": [255, 120, 30]}` for
   `static`, read from `modes.<name>` in the config.
 - `render(buffer, count, frame)` — called every frame; must write `count`
   pixels into `buffer` and return nothing. `frame` is a monotonically
-  increasing counter, reset to `0` whenever the mode (re)loads.
+  increasing counter, reset to `0` whenever the mode (re)loads. When
+  segmenting is active, `count` here is the *segment* length, not the full
+  strip — see [Segmenting](#segmenting).
 - `apply_brightness(buffer, count)` — scales the whole buffer down by
   `mode.brightness` (1-100) in place. Call this yourself as the last line of
   `render()` once you've written raw colors. `off` is the one built-in
@@ -60,13 +68,52 @@ once (see `Runner`'s cached `_zeros`).
 
 Registered in `src/animations/registry.py`:
 
-| Mode | File | Params | Notes |
-|---|---|---|---|
-| `off` | `off.py` | `fade_ms` (default `600`) | Fades whatever was last displayed down to black over `fade_ms`, using an eased (quadratic) curve, then holds all pixels off. Entered whenever `mode.on` is `False` or an unknown mode is selected. |
-| `white` | `white.py` | — | Full white, `interval_ms=500` (static image, no need to redraw fast) |
-| `static` | `static.py` | `color: [r, g, b]` | Solid color |
-| `rainbow` | `rainbow.py` | — | Precomputes a 256-step color wheel once; scrolls it using `mode.speed` |
-| `runner` | `runner.py` | `color: [r, g, b]`, `length` | Trail of `length` pixels chasing around the strip; `interval_ms` derived from `mode.speed` |
+| Mode | File | Params | Segmenting | Notes |
+|---|---|---|---|---|
+| `off` | `off.py` | `fade_ms` (default `600`) | No | Fades whatever was last displayed down to black over `fade_ms`, using an eased (quadratic) curve, then holds all pixels off. Entered whenever `mode.on` is `False` or an unknown mode is selected. |
+| `white` | `white.py` | — | No | Full white, `interval_ms=500` (static image, no need to redraw fast) |
+| `static` | `static.py` | `color: [r, g, b]` | No | Solid color |
+| `rainbow` | `rainbow.py` | — | **Yes** | Precomputes a 256-step color wheel once; scrolls it using `mode.speed` |
+| `runner` | `runner.py` | `color: [r, g, b]`, `length` | No | Trail of `length` pixels chasing around the strip; `interval_ms` derived from `mode.speed` |
+
+`off`/`white`/`static` opt out because segmenting a solid fill produces the
+exact same output as rendering it across the whole strip — there's nothing to
+tile. `runner` opts out because its trail is meant to travel the full strip;
+confined to a short segment its `length` param usually exceeds the segment
+size, so it degenerates into a solid block that repeats rather than a visible
+chase — see [Segmenting](#segmenting).
+
+## Segmenting
+
+Splits the strip into repeating `leds.segmenting.length`-LED blocks so a
+compatible mode's pattern repeats every N LEDs instead of stretching across
+the whole strip once. Configured under `leds.segmenting` in the config
+(`src/defaults.py`):
+
+```json
+"segmenting": {"enabled": false, "length": 2}
+```
+
+- **Only applies to modes with `segmenting_compatible = True`** (see the
+  table above) — incompatible modes always render across the full strip,
+  regardless of this config.
+- **`length` has a floor of 2**, enforced in `StateManager.update()`
+  (`src/state.py`) the same way `mode.brightness`/`speed` are clamped.
+- **No ceiling is enforced at write time.** If `length` ends up `>= leds.count`
+  (e.g. you shrink `count` after setting a large segment), the `Renderer`
+  falls back to rendering the full strip as one segment — this is
+  re-evaluated fresh every frame (`Renderer._segment_count`,
+  `src/renderer.py`), so it self-heals regardless of which value changed or
+  in which order.
+- **Rendering**: the active animation's `render()` is called once with
+  `count` set to the segment length, producing one segment's worth of
+  pixels; `Renderer._tile()` then copies that segment across the rest of the
+  buffer. If `leds.count` isn't a multiple of `length`, the final repeat is
+  **truncated mid-pattern** rather than scaled down — e.g. `count=23`,
+  `length=5` renders 4 full 5-LED segments plus a 5th segment cut off after
+  its first 3 LEDs.
+- **Overridable via MQTT** the same way `mode` fields are — see
+  [MQTT channel](../channels/mqtt.md#311-allow-list-for-the-update-topic).
 
 ## Adding a new mode
 
