@@ -136,3 +136,4 @@ docs/_site/
 docs/.jekyll-cache/
 docs/.sass-cache/
 docs/Gemfile.lock
+.claude/settings.json

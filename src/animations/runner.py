@@ -3,6 +3,7 @@ from animations.base import Animation
 
 class Runner(Animation):
     interval_ms = 50
+    segmenting_compatible = False
 
     def __init__(self, mode, params):
         super().__init__(mode, params)

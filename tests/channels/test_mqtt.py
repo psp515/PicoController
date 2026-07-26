@@ -52,6 +52,15 @@ def test_filter_set_patch_keeps_allowed_and_drops_unknown():
     assert allowed == {"mode": {"current": "rainbow", "on": False}, "leds": {"count": 100}}
 
 
+def test_filter_set_patch_keeps_segmenting():
+    channel, _ = make_channel({})
+    patch = {"leds": {"count": 100, "segmenting": {"enabled": True, "length": 5}, "pin": 5}}
+
+    allowed = channel._filter_set_patch(patch)
+
+    assert allowed == {"leds": {"count": 100, "segmenting": {"enabled": True, "length": 5}}}
+
+
 def test_handle_messages_applies_allowed_patch():
     channel, state = make_channel({"mode": {"current": "static", "on": True}})
     channel._client = FakeClient(
@@ -64,6 +73,25 @@ def test_handle_messages_applies_allowed_patch():
 
     assert state.mode.on is False
     assert state.mode.current == "static"
+
+
+def test_handle_messages_applies_partial_segmenting_patch_preserving_sibling_key():
+    channel, state = make_channel(
+        {"leds": {"count": 100, "segmenting": {"enabled": True, "length": 10}}}
+    )
+    channel._client = FakeClient(
+        queue_items=[
+            (
+                b"controller/led/1/state/update",
+                json.dumps({"leds": {"segmenting": {"length": 5}}}).encode(),
+                False,
+            ),
+        ]
+    )
+
+    asyncio.run(channel._handle_messages())
+
+    assert state.get("leds", "segmenting") == {"enabled": True, "length": 5}
 
 
 def test_handle_messages_ignores_invalid_json():
@@ -115,7 +143,10 @@ def test_handle_up_subscribes_to_state_update_and_announces_online():
 
 def test_publish_state_sends_full_mode_and_leds_on_change():
     channel, state = make_channel(
-        {"mode": {"current": "static", "on": True}, "leds": {"count": 10, "pin": 0}}
+        {
+            "mode": {"current": "static", "on": True},
+            "leds": {"count": 10, "pin": 0, "segmenting": {"enabled": False, "length": 5}},
+        }
     )
     channel._base = "controller/led/1"
     channel._running = True
@@ -143,4 +174,4 @@ def test_publish_state_sends_full_mode_and_leds_on_change():
     assert qos == 0
     data = json.loads(payload)
     assert data["mode"] == {"current": "static", "on": True}
-    assert data["leds"] == {"count": 10}
+    assert data["leds"] == {"count": 10, "segmenting": {"enabled": False, "length": 5}}

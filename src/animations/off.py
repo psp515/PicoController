@@ -5,6 +5,7 @@ FADE_INTERVAL_MS = 30
 
 class Off(Animation):
     interval_ms = 500
+    segmenting_compatible = False
 
     def __init__(self, mode, params):
         super().__init__(mode, params)

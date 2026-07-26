@@ -1,5 +1,6 @@
 class Animation:
     interval_ms = 40
+    segmenting_compatible = True
 
     def __init__(self, mode, params):
         self.mode = mode

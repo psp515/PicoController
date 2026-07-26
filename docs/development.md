@@ -65,8 +65,9 @@ The `src/` code is written so the pure-logic parts (`state.py`, `storage.py`,
 unchanged on regular CPython — that's what the test suite exercises. Code
 that touches hardware (`machine`, `network`, `neopixel`, `microdot`) only runs
 on-device; `tests/conftest.py` stubs the handful of MicroPython-only modules
-(`mqtt_as`, `machine`, `time.ticks_ms`/`ticks_diff`) needed to import
-`channels/mqtt.py` under test.
+and functions (`mqtt_as`, `machine` incl. `Pin`, `neopixel`,
+`time.ticks_ms`/`ticks_diff`, `asyncio.sleep_ms`) needed to import
+`channels/mqtt.py` and `renderer.py` under test.
 
 Install once:
 
@@ -138,7 +139,7 @@ two on an actual device — see [Manual setup](setup.md) for setting up
 | Key | Fields | Notes |
 |---|---|---|
 | `device` | `name` | Display name only |
-| `leds` | `count`, `pin`, `on_after_boot` | `count`/`pin` describe the physical strip; `on_after_boot` controls whether it lights up on power-up or waits `off` |
+| `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count`/`pin` describe the physical strip; `on_after_boot` controls whether it lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
 | `mode` | `current`, `brightness`, `speed`, `on` | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), and on/off |
 | `modes` | one entry per mode name | Each mode's own params, e.g. `static: {"color": [r, g, b]}`, `runner: {"color": [...], "length": n}` — see [Animations](animations/index.md) |
 | `wifi` | `ssid`, `password` | Empty `ssid` disables Wi-Fi (and everything that depends on it) |

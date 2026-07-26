@@ -43,6 +43,7 @@ async def main():
     state = StateManager(storage.load())
     logger = Logger(state, [ConsoleAppender()])
     state.set_logger(logger)
+    state.revalidate()
     logger.info("main", "starting device {0} version {1}", state.device_id, state.version)
 
     if not state.get("leds", "on_after_boot", default=True):

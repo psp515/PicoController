@@ -19,9 +19,9 @@ the device from anywhere on the network. Where the [button](button.md) gives
 you two gestures, MQTT gives you the same controls and more:
 
 - **Turn the lights on or off, switch the lighting mode, adjust brightness or
-  speed** — all by publishing a small JSON patch to one topic; see
-  [3.1](#31-message-examples-stateupdate) for the exact shape and copy-paste
-  examples.
+  speed, enable segmenting** — all by publishing a small JSON patch to one
+  topic; see [3.1](#31-message-examples-stateupdate) for the exact shape and
+  copy-paste examples.
 - **See the current state** — the device publishes its full state, retained,
   whenever anything changes, so a fresh subscriber gets it immediately; see
   [3.2](#32-message-examples-statefull).
@@ -166,7 +166,7 @@ All topics are prefixed with `<base_topic>` (`mqtt.base_topic`, default
 | Direction | Topic | Payload |
 |---|---|---|
 | Subscribes | `<base_topic>/state/update` | JSON patch — only the allow-listed keys are applied; everything else is silently dropped |
-| Publishes, retained | `<base_topic>/state/full` | `{"mode": {...}, "leds": {"count": 144}}`, sent whenever the state changes |
+| Publishes, retained | `<base_topic>/state/full` | `{"mode": {...}, "leds": {"count": 144, "segmenting": {...}}}`, sent whenever the state changes |
 | Publishes, retained (last will) | `<base_topic>/state/online` | `"online"` while connected, `"offline"` if the device drops off unexpectedly |
 
 ## 3.1 Message examples: `state/update`
@@ -176,6 +176,15 @@ Set brightness and switch mode:
 ```
 mosquitto_pub -h <broker> -t <base_topic>/state/update \
   -m '{"mode": {"brightness": 80, "current": "rainbow"}}'
+```
+
+Enable segmenting with a 5-LED repeat (only affects modes with
+`segmenting_compatible = True`, e.g. `rainbow` — see
+[Segmenting](../animations/index.md#segmenting)):
+
+```
+mosquitto_pub -h <broker> -t <base_topic>/state/update \
+  -m '{"leds": {"segmenting": {"enabled": true, "length": 5}}}'
 ```
 
 The device applies this the same way any other channel's patch is applied:
@@ -191,7 +200,7 @@ this topic only accepts a fixed, small set of keys
 | Key | Allowed fields |
 |---|---|
 | `mode` | `current`, `brightness`, `speed`, `on` |
-| `leds` | `count` |
+| `leds` | `count`, `segmenting` |
 
 Anything outside this shape — an unknown top-level key, a field not listed
 above, or a non-object value — is dropped rather than applied; if *nothing*
@@ -199,6 +208,13 @@ in the patch survives filtering, the whole message is ignored and a warning
 is logged. MQTT topics are commonly wired into shared home-automation
 systems, so this keeps a stray or malformed automation from rewriting the
 device's Wi-Fi/MQTT credentials or any other config it shouldn't touch.
+
+`segmenting` is allowed as a whole field, same as any `mode` field — the
+filter only checks the field *name*, not its contents, so the full
+`{"enabled": bool, "length": n}` object passes through in one patch (see
+[Segmenting](../animations/index.md#segmenting) for what it does and which
+modes respect it). `length` is still floor-clamped to `2` by
+`StateManager.update()` regardless of what's published.
 
 ## 3.2 Message examples: `state/full`
 
@@ -211,7 +227,7 @@ mosquitto_sub -h <broker> -t <base_topic>/state/full -v
 ```
 
 ```json
-{"mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true}, "leds": {"count": 144}}
+{"mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true}, "leds": {"count": 144, "segmenting": {"enabled": true, "length": 5}}}
 ```
 
 ## 3.3 Last will / online status
