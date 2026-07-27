@@ -19,9 +19,10 @@ the device from anywhere on the network. Where the [button](button.md) gives
 you two gestures, MQTT gives you the same controls and more:
 
 - **Turn the lights on or off, switch the lighting mode, adjust brightness or
-  speed, enable segmenting** — all by publishing a small JSON patch to one
-  topic; see [3.1](#31-message-examples-stateupdate) for the exact shape and
-  copy-paste examples.
+  speed, resize the strip, enable segmenting** — all by publishing a small
+  JSON patch to one topic, taking effect immediately with no reboot; see
+  [3.1](#31-message-examples-stateupdate) for the exact shape and copy-paste
+  examples.
 - **See the current state** — the device publishes its full state, retained,
   whenever anything changes, so a fresh subscriber gets it immediately; see
   [3.2](#32-message-examples-statefull).
@@ -178,6 +179,34 @@ mosquitto_pub -h <broker> -t <base_topic>/state/update \
   -m '{"mode": {"brightness": 80, "current": "rainbow"}}'
 ```
 
+Resize the strip to 60 LEDs (the `Renderer` reallocates its buffer on the
+fly, no reboot):
+
+```
+mosquitto_pub -h <broker> -t <base_topic>/state/update \
+  -m '{"leds": {"count": 60}}'
+```
+
+Reverse the animation direction, so it plays from the far end of the strip
+(applies to every mode except `off` — see
+[Direction](../animations/index.md#direction)):
+
+```
+mosquitto_pub -h <broker> -t <base_topic>/state/update \
+  -m '{"mode": {"direction": "backward"}}'
+```
+
+Back to normal, and set the global color at the same time (any allow-listed
+`mode` fields can share one patch):
+
+```
+mosquitto_pub -h <broker> -t <base_topic>/state/update \
+  -m '{"mode": {"direction": "forward", "color": [255, 120, 30]}}'
+```
+
+Anything other than `"forward"`/`"backward"` is ignored by validation and
+the current direction is kept.
+
 Enable segmenting with a 5-LED repeat (only affects modes with
 `segmenting_compatible = True`, e.g. `rainbow` — see
 [Segmenting](../animations/index.md#segmenting)):
@@ -199,7 +228,7 @@ this topic only accepts a fixed, small set of keys
 
 | Key | Allowed fields |
 |---|---|
-| `mode` | `current`, `brightness`, `speed`, `on` |
+| `mode` | `current`, `brightness`, `speed`, `on`, `color`, `direction` |
 | `leds` | `count`, `segmenting` |
 
 Anything outside this shape — an unknown top-level key, a field not listed
@@ -227,7 +256,7 @@ mosquitto_sub -h <broker> -t <base_topic>/state/full -v
 ```
 
 ```json
-{"mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true}, "leds": {"count": 144, "segmenting": {"enabled": true, "length": 5}}}
+{"mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true, "color": [255, 120, 30], "direction": "forward"}, "leds": {"count": 144, "segmenting": {"enabled": true, "length": 5}}}
 ```
 
 ## 3.3 Last will / online status

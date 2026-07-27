@@ -19,7 +19,7 @@ NTP_TIMEOUT_S = 2
 NTP_DELTA = 3155673600 if time.gmtime(0)[0] == 2000 else 2208988800
 
 ALLOWED_SET_KEYS = {
-    "mode": {"current", "brightness", "speed", "on"},
+    "mode": {"current", "brightness", "speed", "on", "color", "direction"},
     "leds": {"count", "segmenting"},
 }
 

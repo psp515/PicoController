@@ -33,7 +33,10 @@ class Rainbow(Animation):
 
     def render(self, buffer, count, frame):
         wheel = self._wheel
-        offset = frame * self._speed
+        scroll = frame - self.wipe_frames(count)
+        if scroll < 0:
+            scroll = 0
+        offset = scroll * self._speed
         for i in range(count):
             src = (((i * 256) // count + offset) & 255) * 3
             dst = i * 3
@@ -41,3 +44,4 @@ class Rainbow(Animation):
             buffer[dst + 1] = wheel[src + 1]
             buffer[dst + 2] = wheel[src + 2]
         self.apply_brightness(buffer, count)
+        self.apply_wipe(buffer, count, frame)

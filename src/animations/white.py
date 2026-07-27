@@ -1,11 +1,9 @@
-from animations.base import Animation
+from animations.static import Static
 
 
-class White(Animation):
-    interval_ms = 500
-    segmenting_compatible = False
-
-    def render(self, buffer, count, frame):
-        for i in range(count * 3):
-            buffer[i] = 255
-        self.apply_brightness(buffer, count)
+class White(Static):
+    def __init__(self, mode, params):
+        super().__init__(mode, params)
+        self._r = 255
+        self._g = 255
+        self._b = 255

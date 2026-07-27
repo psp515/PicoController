@@ -153,4 +153,23 @@ Mirrors `.github/workflows/ci.yml` (lint → build → test), runs on CPython, n
 - Invoke the `caveman` skill at the start of every chat in this project by
   default, no trigger phrase needed. Keep it active per its own persistence
   rules (stays on until user says "stop caveman" / "normal mode").
-- Don't remove added comments by developers - they will start with U 
+- Don't remove added comments by developers - they will start with U
+
+## Keeping this file and the docs in sync
+
+Whenever a change affects something described in this file or in `docs/` —
+a new/changed config field, a new mode or channel, a new architecture rule,
+a behavior change (e.g. what's now dynamically updatable, what gets
+validated, what a channel exposes) — update both **in the same change**,
+not as a follow-up:
+
+- Update the relevant section of this file (`.claude/CLAUDE.md`) if the
+  change affects a requirement, architecture rule, or convention stated
+  here.
+- Update the relevant page(s) under `docs/` (`development.md`,
+  `animations/index.md`, `channels/*.md`, `index.md`) — see
+  [Documentation (GitHub Pages)](#documentation-github-pages) above for how
+  navigation/front matter works when adding a new page.
+- If a change only affects internal implementation with no user- or
+  contributor-visible behavior change, no doc update is needed — don't pad
+  docs with internal detail no one reading them would act on.
