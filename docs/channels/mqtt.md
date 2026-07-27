@@ -187,6 +187,26 @@ mosquitto_pub -h <broker> -t <base_topic>/state/update \
   -m '{"leds": {"count": 60}}'
 ```
 
+Reverse the animation direction, so it plays from the far end of the strip
+(applies to every mode except `off` — see
+[Direction](../animations/index.md#direction)):
+
+```
+mosquitto_pub -h <broker> -t <base_topic>/state/update \
+  -m '{"mode": {"direction": "backward"}}'
+```
+
+Back to normal, and set the global color at the same time (any allow-listed
+`mode` fields can share one patch):
+
+```
+mosquitto_pub -h <broker> -t <base_topic>/state/update \
+  -m '{"mode": {"direction": "forward", "color": [255, 120, 30]}}'
+```
+
+Anything other than `"forward"`/`"backward"` is ignored by validation and
+the current direction is kept.
+
 Enable segmenting with a 5-LED repeat (only affects modes with
 `segmenting_compatible = True`, e.g. `rainbow` — see
 [Segmenting](../animations/index.md#segmenting)):

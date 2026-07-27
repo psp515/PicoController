@@ -34,8 +34,10 @@ class Animation:
 ```
 
 - `interval_ms` — delay between frames; the renderer sleeps this long after
-  each `render()` call. Override per-class, or compute dynamically in
-  `__init__` from `mode.speed` (see `Runner`).
+  each `render()` call. Override per-class, or mutate it at runtime — `Static`
+  drops to `WIPE_INTERVAL_MS` (30) during its startup wipe and back to 500
+  once done; `Runner` renders at a fixed 30 ms and folds `mode.speed` into
+  its per-frame step instead.
 - `segmenting_compatible` — whether this mode may be split into repeating
   `leds.segmenting.length`-LED blocks when segmenting is enabled; see
   [Segmenting](#segmenting) below. Defaults to `True`; override to `False` for
@@ -82,13 +84,13 @@ stale size on a later call to that same instance.
 
 Registered in `src/animations/registry.py`:
 
-| Mode | File | Params | Segmenting | Notes |
-|---|---|---|---|---|
-| `off` | `off.py` | `fade_ms` (default `600`) | No | Fades whatever was last displayed down to black over `fade_ms`, using an eased (quadratic) curve, then holds all pixels off. Entered whenever `mode.on` is `False` or an unknown mode is selected. |
-| `white` | `white.py` | — | No | `Static` subclass with the color pinned to white (`mode.color` ignored); same wipe-in startup |
-| `static` | `static.py` | — | No | Solid `mode.color`; starts with a gradient wipe-in, LED by LED from one end (see [Startup wipe](#startup-wipe)), then settles at `interval_ms=500` |
-| `rainbow` | `rainbow.py` | — | **Yes** | Precomputes a 256-step color wheel once; wipes the first rainbow frame in on startup, then scrolls it using `mode.speed` |
-| `runner` | `runner.py` | `length` | No | Trail of `length` pixels in `mode.color` chasing around the strip, brightest in the middle and fading to black at both ends; enters cleanly from the start of the strip (no wrapped tail on the first pass). Renders at a fixed 30 ms frame rate with a sub-pixel (fixed-point) head position, so the trail slides smoothly between LEDs; `mode.speed` sets travel speed in LEDs/second |
+| Mode | File | Params | Segmenting | Direction | Notes |
+|---|---|---|---|---|---|
+| `off` | `off.py` | `fade_ms` (default `600`) | No | **No** | Fades whatever was last displayed down to black over `fade_ms`, using an eased (quadratic) curve, then holds all pixels off. Entered whenever `mode.on` is `False` or an unknown mode is selected. |
+| `white` | `white.py` | — | No | Yes (startup only) | `Static` subclass with the color pinned to white (`mode.color` ignored); same wipe-in startup |
+| `static` | `static.py` | — | No | Yes (startup only) | Solid `mode.color`; starts with a gradient wipe-in, LED by LED from one end (see [Startup wipe](#startup-wipe)), then settles at `interval_ms=500` |
+| `rainbow` | `rainbow.py` | — | **Yes** | Yes | Precomputes a 256-step color wheel once; wipes the first rainbow frame in on startup, then scrolls it using `mode.speed` |
+| `runner` | `runner.py` | `length` | No | Yes | Trail of `length` pixels in `mode.color` chasing around the strip, brightest in the middle and fading to black at both ends; enters cleanly from the start of the strip (no wrapped tail on the first pass). Renders at a fixed 30 ms frame rate with a sub-pixel (fixed-point) head position, so the trail slides smoothly between LEDs; `mode.speed` sets travel speed in LEDs/second |
 
 `off`/`white`/`static` opt out because segmenting a solid fill produces the
 exact same output as rendering it across the whole strip — there's nothing to
@@ -96,6 +98,29 @@ tile. `runner` opts out because its trail is meant to travel the full strip;
 confined to a short segment its `length` param usually exceeds the segment
 size, so it degenerates into a solid block that repeats rather than a visible
 chase — see [Segmenting](#segmenting).
+
+## Brightness and speed
+
+Both are global `mode` fields, shared by all modes, and both are clamped to
+**1-100** by `StateManager` (`MODE_RANGES` in `src/state.py`) — out-of-range
+values are clamped, non-numeric ones ignored.
+
+- **`mode.brightness` (1-100)** works the same everywhere: a percentage scale
+  applied to the whole frame by `apply_brightness` (see above). `100` writes
+  raw colors unchanged; lower values scale every channel down linearly. `off`
+  ignores it (it fades already-scaled output).
+- **`mode.speed` (1-100)** is a raw rate, *not* a percentage — each mode
+  interprets it with its own unit:
+
+| Mode | Unit | Feel |
+|---|---|---|
+| `runner` | LEDs per second | `10` ≈ 14 s per lap of a 144-LED strip; `100` sweeps it in ~1.4 s |
+| `rainbow` | color-wheel steps (of 256) per 40 ms frame | `10` ≈ one full color cycle per second; `100` ≈ 10 cycles/s — strobe territory |
+| `off`, `white`, `static` | unused | — |
+
+Low values (5-20) are the comfortable zone for both animated modes. Changing
+either field rebuilds the animation instance without resetting `frame`, so
+tweaks apply immediately mid-animation — no startup replay.
 
 ## Startup wipe
 
@@ -126,15 +151,25 @@ turns on) — see the `frame` semantics above.
 
 ## Direction
 
-`mode.direction` is global, handled entirely by the `Renderer` — animations
+`mode.direction` (`"forward"` / `"backward"`, validated in
+`StateManager`) is global, handled entirely by the `Renderer` — animations
 always render "forward" (from LED 0 toward the end of the strip) and never
 need to know about it. When `direction` is `"backward"`, the renderer mirrors
 the final pixel buffer in place (`Renderer._reverse`, after segment tiling)
 just before writing to the strip, so every animation — including startup
-wipes and the runner trail — plays from the far end. The one exception is
-`off`: its fade works from a snapshot of what was last *displayed* (already
-mirrored), so reversing again would flip the image mid-fade; the renderer
-skips the mirror for `off`.
+wipes and the runner trail — plays from the far end.
+
+Per-mode compatibility (the "Direction" column in the table above):
+
+- `runner` — fully direction-aware: the trail travels toward LED 0 instead of
+  away from it.
+- `rainbow` — fully direction-aware: both the startup wipe and the ongoing
+  scroll run from the far end.
+- `static` / `white` — direction only matters during the startup wipe (which
+  end lights up first); the steady solid fill looks identical either way.
+- `off` — **not compatible**, the renderer skips the mirror: its fade works
+  from a snapshot of what was last *displayed* (already mirrored), so
+  reversing again would flip the image mid-fade.
 
 ## Segmenting
 
