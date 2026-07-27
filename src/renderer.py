@@ -79,6 +79,16 @@ class Renderer:
             left += 3
             right -= 3
 
+    def _render_frame(self, anim, frame):
+        buf = self.np.buf
+        seg_count = self._segment_count(anim)
+        anim.render(buf, seg_count, frame)
+        if seg_count < self.count:
+            self._tile(buf, seg_count)
+        if self.state.mode.direction == "backward" and not isinstance(anim, Off):
+            self._reverse(buf)
+        self.np.write()
+
     async def start(self):
         anim = None
         anim_name = None
@@ -88,7 +98,6 @@ class Renderer:
             if new_count != self.count:
                 self._resize(new_count)
                 self._reload = True
-            buf = self.np.buf
             if self._reload:
                 self._reload = False
                 name = self._mode_name()
@@ -96,12 +105,6 @@ class Renderer:
                 if name != anim_name:
                     frame = 0
                 anim_name = name
-            seg_count = self._segment_count(anim)
-            anim.render(buf, seg_count, frame)
-            if seg_count < self.count:
-                self._tile(buf, seg_count)
-            if self.state.mode.direction == "backward" and not isinstance(anim, Off):
-                self._reverse(buf)
-            self.np.write()
+            self._render_frame(anim, frame)
             frame += 1
             await asyncio.sleep_ms(anim.interval_ms)

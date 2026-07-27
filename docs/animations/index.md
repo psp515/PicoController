@@ -88,7 +88,7 @@ Registered in `src/animations/registry.py`:
 | `white` | `white.py` | — | No | `Static` subclass with the color pinned to white (`mode.color` ignored); same wipe-in startup |
 | `static` | `static.py` | — | No | Solid `mode.color`; starts with a gradient wipe-in, LED by LED from one end (see [Startup wipe](#startup-wipe)), then settles at `interval_ms=500` |
 | `rainbow` | `rainbow.py` | — | **Yes** | Precomputes a 256-step color wheel once; wipes the first rainbow frame in on startup, then scrolls it using `mode.speed` |
-| `runner` | `runner.py` | `length` | No | Trail of `length` pixels in `mode.color` chasing around the strip, brightest in the middle and dimmer at both ends; enters cleanly from the start of the strip (no wrapped tail on the first pass); `interval_ms` derived from `mode.speed` |
+| `runner` | `runner.py` | `length` | No | Trail of `length` pixels in `mode.color` chasing around the strip, brightest in the middle and fading to black at both ends; enters cleanly from the start of the strip (no wrapped tail on the first pass). Renders at a fixed 30 ms frame rate with a sub-pixel (fixed-point) head position, so the trail slides smoothly between LEDs; `mode.speed` sets travel speed in LEDs/second |
 
 `off`/`white`/`static` opt out because segmenting a solid fill produces the
 exact same output as rendering it across the whole strip — there's nothing to

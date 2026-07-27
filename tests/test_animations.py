@@ -103,39 +103,53 @@ def test_rainbow_scrolls_after_wipe():
 
 
 def test_runner_enters_from_start_without_wrapping():
-    mode = make_mode(color=[255, 255, 255])
+    mode = make_mode(color=[255, 255, 255], speed=100)
     anim = Runner(mode, mode.params("runner"))
     count = 10
     buffer = bytearray(count * 3)
 
-    anim.render(buffer, count, 0)
+    anim.render(buffer, count, 1)
 
-    assert any(buffer[0:3])
-    assert bytes(buffer[3:]) == bytes(count * 3 - 3)
+    assert any(buffer[0:9])
+    assert bytes(buffer[9:]) == bytes(count * 3 - 9)
 
 
-def test_runner_trail_middle_is_brightest():
-    mode = make_mode(color=[255, 255, 255])
+def test_runner_trail_middle_is_brightest_and_symmetric():
+    mode = make_mode(color=[255, 255, 255], speed=100)
     anim = Runner(mode, mode.params("runner"))
-    count = 10
+    count = 12
     buffer = bytearray(count * 3)
 
-    anim.render(buffer, count, 4)
+    anim.render(buffer, count, 2)
 
-    levels = [buffer[i * 3] for i in range(5)]
-    assert levels[2] == max(levels)
-    assert levels[0] == levels[4]
-    assert levels[0] < levels[1] < levels[2]
-    assert levels[2] == 255
+    levels = [buffer[i * 3] for i in range(count)]
+    assert levels[6] == 0
+    assert levels[3] == levels[4] == max(levels)
+    assert levels[2] == levels[5]
+    assert 0 < levels[2] < levels[3]
+
+
+def test_runner_moves_sub_pixel_between_frames():
+    mode = make_mode(color=[255, 255, 255], speed=50)
+    anim = Runner(mode, mode.params("runner"))
+    count = 12
+    first = bytearray(count * 3)
+    second = bytearray(count * 3)
+
+    anim.render(first, count, 2)
+    anim.render(second, count, 3)
+
+    assert bytes(first) != bytes(second)
+    assert 0 < second[3 * 3] < 255
 
 
 def test_runner_wraps_after_first_pass():
-    mode = make_mode(color=[255, 255, 255])
+    mode = make_mode(color=[255, 255, 255], speed=100)
     anim = Runner(mode, mode.params("runner"))
-    count = 10
+    count = 12
     buffer = bytearray(count * 3)
 
-    anim.render(buffer, count, count)
+    anim.render(buffer, count, 5)
 
     assert any(buffer[0:3])
     assert any(buffer[-3:])
