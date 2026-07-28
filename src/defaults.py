@@ -28,6 +28,7 @@ DEFAULTS = {
         "user": "",
         "password": "",
         "base_topic": "controller/led/1",
+        "use_single_topic_for_state_update": False,
         "ssl": False,
         "ssl_params": {},
         "ntp_host": "pool.ntp.org",
