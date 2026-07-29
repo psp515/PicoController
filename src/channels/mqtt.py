@@ -33,10 +33,17 @@ class MqttChannel(Channel):
         self._client = None
         self._tasks = []
         self._base = "controller/led/1"
+        self._single = False
         self._changed = asyncio.Event()
 
     def _on_change(self, patch):
         self._changed.set()
+
+    def _update_topic(self):
+        return self._base + ("/state" if self._single else "/state/update")
+
+    def _full_topic(self):
+        return self._base + ("/state" if self._single else "/state/full")
 
     def _build_client(self):
         cfg = dict(mqtt_config)
@@ -89,12 +96,12 @@ class MqttChannel(Channel):
             await self._client.up.wait()
             self._client.up.clear()
             try:
-                await self._client.subscribe(self._base + "/state/update", 0)
+                await self._client.subscribe(self._update_topic(), 0)
                 await self._client.publish(self._base + "/state/online", "online", True, 0)
             except OSError as e:
                 self.logger.warning("mqtt", "failed to subscribe/announce on {0}: {1}", self._base, e)
                 continue
-            self.logger.info("mqtt", "session up, subscribed {0}/state/update", self._base)
+            self.logger.info("mqtt", "session up, subscribed {0}", self._update_topic())
             self._changed.set()
 
     def _filter_set_patch(self, patch):
@@ -117,6 +124,8 @@ class MqttChannel(Channel):
             if not isinstance(patch, dict):
                 self.logger.warning("mqtt", "payload on {0} is not an object", topic)
                 continue
+            if patch.get("device") == self.state.device_id:
+                continue
             allowed = self._filter_set_patch(patch)
             if allowed:
                 self.state.update(allowed)
@@ -129,6 +138,7 @@ class MqttChannel(Channel):
             self._changed.clear()
             payload = json.dumps(
                 {
+                    "device": self.state.device_id,
                     "mode": self.state.get("mode"),
                     "leds": {
                         "count": self.state.get("leds", "count"),
@@ -137,9 +147,9 @@ class MqttChannel(Channel):
                 }
             )
             try:
-                await self._client.publish(self._base + "/state/full", payload, True, 0)
+                await self._client.publish(self._full_topic(), payload, True, 0)
             except OSError as e:
-                self.logger.warning("mqtt", "publish to {0}/state/full failed: {1}", self._base, e)
+                self.logger.warning("mqtt", "publish to {0} failed: {1}", self._full_topic(), e)
 
     async def start(self):
         self._running = True
@@ -154,6 +164,7 @@ class MqttChannel(Channel):
         if not self._running:
             return
         self._base = self.state.get("mqtt", "base_topic", default="")
+        self._single = self.state.get("mqtt", "use_single_topic_for_state_update", default=False)
         if self.state.get("mqtt", "ssl", default=False):
             while self._running and not self._sync_time():
                 await asyncio.sleep_ms(NTP_RETRY_MS)

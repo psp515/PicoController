@@ -127,6 +127,7 @@ Read from the `mqtt` section of `config.json` (defaults in `src/defaults.py`):
 | `mqtt.port` | `1883` | Broker port |
 | `mqtt.user` / `mqtt.password` | `""` / `""` | Broker credentials |
 | `mqtt.base_topic` | `controller/led/1` | Prefix for every topic this channel uses |
+| `mqtt.use_single_topic_for_state_update` | `false` | When `true`, joins `state/update` and `state/full` into one topic, `<base_topic>/state` — see [2.2](#22-single-topic-mode) |
 | `mqtt.ssl` | `false` | Enables TLS; also gates the NTP sync step |
 | `mqtt.ssl_params` | `{}` | Passed through to `mqtt_as`; `server_hostname` is filled in from `mqtt.server` if not already set |
 | `mqtt.ntp_host` | `pool.ntp.org` | NTP server used only when `mqtt.ssl` is true |
@@ -167,8 +168,32 @@ All topics are prefixed with `<base_topic>` (`mqtt.base_topic`, default
 | Direction | Topic | Payload |
 |---|---|---|
 | Subscribes | `<base_topic>/state/update` | JSON patch — only the allow-listed keys are applied; everything else is silently dropped |
-| Publishes, retained | `<base_topic>/state/full` | `{"mode": {...}, "leds": {"count": 144, "segmenting": {...}}}`, sent whenever the state changes |
+| Publishes, retained | `<base_topic>/state/full` | `{"device": "<id>", "mode": {...}, "leds": {"count": 144, "segmenting": {...}}}`, sent whenever the state changes |
 | Publishes, retained (last will) | `<base_topic>/state/online` | `"online"` while connected, `"offline"` if the device drops off unexpectedly |
+
+Every published state payload carries a `"device"` field with the device's
+own id (`StateManager.device_id`, derived from `machine.unique_id()`), and
+`_handle_messages` drops any incoming patch whose `device` equals that id.
+In the default two-topic setup this never triggers; it exists for single-topic
+mode below. External senders should simply omit the field.
+
+### 2.2 Single-topic mode
+
+Some integrations want commands and state on one topic. Set
+`mqtt.use_single_topic_for_state_update: true` and both directions collapse
+onto `<base_topic>/state`:
+
+| Direction | Topic | Payload |
+|---|---|---|
+| Subscribes | `<base_topic>/state` | Same allow-listed JSON patch as `state/update` |
+| Publishes, retained | `<base_topic>/state` | Same full-state payload as `state/full` |
+
+Because the device is now subscribed to the topic it publishes on, the broker
+echoes its own state publishes back (MQTT 3.1.1, which `mqtt_as` speaks, has
+no MQTT 5 "No Local" subscription option). The `"device"` field is what breaks
+that loop: the device ignores any payload stamped with its own id — including
+the retained copy replayed on every reconnect. `<base_topic>/state/online`
+is unaffected by this switch.
 
 ## 3.1 Message examples: `state/update`
 
@@ -256,7 +281,7 @@ mosquitto_sub -h <broker> -t <base_topic>/state/full -v
 ```
 
 ```json
-{"mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true, "color": [255, 120, 30], "direction": "forward"}, "leds": {"count": 144, "segmenting": {"enabled": true, "length": 5}}}
+{"device": "e6614c311b331b35", "mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true, "color": [255, 120, 30], "direction": "forward"}, "leds": {"count": 144, "segmenting": {"enabled": true, "length": 5}}}
 ```
 
 ## 3.3 Last will / online status
