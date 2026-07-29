@@ -10,9 +10,9 @@ from mqtt_as import MQTTClient, config as mqtt_config
 
 from channels.base import Channel
 
-IDLE_MS = 60000
 WIFI_POLL_MS = 500
 RETRY_MS = 15000
+RETRY_SLICE_MS = 500
 NTP_RETRY_MS = 2000
 NTP_PORT = 123
 NTP_TIMEOUT_S = 2
@@ -35,9 +35,22 @@ class MqttChannel(Channel):
         self._base = "controller/led/1"
         self._single = False
         self._changed = asyncio.Event()
+        self._restart = asyncio.Event()
 
     def _on_change(self, patch):
-        self._changed.set()
+        if "mqtt" in patch or "wifi" in patch:
+            self._restart.set()
+        else:
+            self._changed.set()
+
+    def _active(self):
+        return self._running and not self._restart.is_set()
+
+    async def _sleep_watching(self, ms):
+        waited = 0
+        while self._active() and waited < ms:
+            await asyncio.sleep_ms(RETRY_SLICE_MS)
+            waited += RETRY_SLICE_MS
 
     def _update_topic(self):
         return self._base + ("/state" if self._single else "/state/update")
@@ -151,27 +164,25 @@ class MqttChannel(Channel):
             except OSError as e:
                 self.logger.warning("mqtt", "publish to {0} failed: {1}", self._full_topic(), e)
 
-    async def start(self):
-        self._running = True
+    async def _session(self):
         server = self.state.get("mqtt", "server", default="")
         if not server:
             self.logger.info("mqtt", "no server configured, mqtt disabled")
-            while self._running:
-                await asyncio.sleep_ms(IDLE_MS)
+            await self._restart.wait()
             return
-        while self._running and not self.state.get("runtime", "wifi", "connected"):
+        while self._active() and not self.state.get("runtime", "wifi", "connected"):
             await asyncio.sleep_ms(WIFI_POLL_MS)
-        if not self._running:
+        if not self._active():
             return
         self._base = self.state.get("mqtt", "base_topic", default="")
         self._single = self.state.get("mqtt", "use_single_topic_for_state_update", default=False)
         if self.state.get("mqtt", "ssl", default=False):
-            while self._running and not self._sync_time():
-                await asyncio.sleep_ms(NTP_RETRY_MS)
-            if not self._running:
+            while self._active() and not self._sync_time():
+                await self._sleep_watching(NTP_RETRY_MS)
+            if not self._active():
                 return
         self._client = self._build_client()
-        while self._running:
+        while self._active():
             gc.collect()
             self.logger.debug("mqtt", "free memory before connect: {0}", gc.mem_free())
             try:
@@ -179,25 +190,41 @@ class MqttChannel(Channel):
                 break
             except OSError as e:
                 self.logger.warning("mqtt", "connect to {0} failed, retry in {1}ms: {2}", server, RETRY_MS, e)
-                await asyncio.sleep_ms(RETRY_MS)
-        if not self._running:
+                await self._sleep_watching(RETRY_MS)
+        if not self._active():
             return
         self.logger.info("mqtt", "connected to {0}:{1}", server, self.state.get("mqtt", "port", default=1883))
-        self.state.subscribe(self._on_change)
         self._tasks = [
             asyncio.create_task(self._handle_up()),
             asyncio.create_task(self._handle_messages()),
             asyncio.create_task(self._publish_state()),
         ]
-        while self._running:
-            await asyncio.sleep_ms(IDLE_MS)
+        await self._restart.wait()
 
-    async def stop(self):
-        self._running = False
+    async def _teardown(self):
         for task in self._tasks:
             task.cancel()
         self._tasks = []
         if self._client:
+            try:
+                await self._client.publish(self._base + "/state/online", "offline", True, 0)
+            except OSError:
+                pass
             self._client.close()
             self._client = None
+
+    async def start(self):
+        self._running = True
+        self.state.subscribe(self._on_change)
+        while self._running:
+            self._restart.clear()
+            await self._session()
+            await self._teardown()
+            if self._running and self._restart.is_set():
+                self.logger.info("mqtt", "config changed, restarting")
+
+    async def stop(self):
+        self._running = False
+        self._restart.set()
+        await self._teardown()
         self.logger.info("mqtt", "stopped")

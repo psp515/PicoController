@@ -170,18 +170,23 @@ state.revalidate()
 
 ### Top-level keys
 
-| Key | Fields | Notes |
-|---|---|---|
-| `device` | `name` | Display name only |
-| `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count` is read fresh every frame by the `Renderer`, which reallocates the NeoPixel buffer if it changed — so it's changeable at runtime, no reboot needed (floor of 1, clamped in `StateManager`); `pin` only takes effect on the next resize/reboot; `on_after_boot` controls whether the strip lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
-| `mode` | `current`, `brightness`, `speed`, `on`, `color`, `direction` | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), on/off, global `color: [r, g, b]` (each 0-255, clamped) used by color-driven modes, and `direction` (`"forward"`/`"backward"`) — `"backward"` mirrors the rendered strip so animations run from the far end; applies to every mode except `off` — see [Animations](animations/index.md#direction) |
-| `modes` | one entry per mode name | Each mode's own params, e.g. `runner: {"length": n}`, `off: {"fade_ms": n}` — see [Animations](animations/index.md) |
-| `wifi` | `ssid`, `password` | Empty `ssid` disables Wi-Fi (and everything that depends on it) |
-| `mqtt` | `server`, `port`, `user`, `password`, `base_topic`, `ssl`, `ssl_params`, `ntp_host` | Empty `server` disables MQTT entirely; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting |
-| `button` | `pin` | GPIO for the cover button |
-| `ir` | `pin`, `codes` | GPIO for the IR receiver; `codes` maps received NEC codes to arbitrary state patches |
-| `logging` | `enabled`, `level` | Disabled by default; `level` is one of `debug`/`info`/`warning`/`error` |
-| `watchdog` | `enabled` | Hardware watchdog (see below); disabled by default, enable on production devices |
+The **Applies** column states how a change to the key takes effect: `live`
+means it's picked up at runtime (a Web API patch is enough), `reboot` means
+it's only read at startup, `boot only` means the key inherently only ever
+matters during boot.
+
+| Key | Fields | Applies | Notes |
+|---|---|---|---|
+| `device` | `name` | live | Display name only |
+| `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count`/`segmenting` live; `pin` reboot; `on_after_boot` boot only | `count` is read fresh every frame by the `Renderer`, which reallocates the NeoPixel buffer if it changed — so it's changeable at runtime, no reboot needed (floor of 1, clamped in `StateManager`); `pin` is bound once at startup; `on_after_boot` controls whether the strip lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
+| `mode` | `current`, `brightness`, `speed`, `on`, `color`, `direction` | live | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), on/off, global `color: [r, g, b]` (each 0-255, clamped) used by color-driven modes, and `direction` (`"forward"`/`"backward"`) — `"backward"` mirrors the rendered strip so animations run from the far end; applies to every mode except `off` — see [Animations](animations/index.md#direction) |
+| `modes` | one entry per mode name | live | Each mode's own params, e.g. `runner: {"length": n}`, `off: {"fade_ms": n}` — see [Animations](animations/index.md) |
+| `wifi` | `ssid`, `password` | live — channel reconnects | Empty `ssid` disables Wi-Fi (and everything that depends on it); changing credentials makes the channel reconnect, with automatic revert to the last working credentials if the new ones never connect — see [Wifi channel](channels/wifi.md#12-changing-credentials-at-runtime) |
+| `mqtt` | `server`, `port`, `user`, `password`, `base_topic`, `use_single_topic_for_state_update`, `ssl`, `ssl_params`, `ntp_host` | live — session restarts | Empty `server` disables MQTT entirely; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting; any change tears the session down (publishing `"offline"` on the old topic) and reconnects with the new config — see [MQTT channel](channels/mqtt.md#121-config-changes-at-runtime) |
+| `button` | `pin` | reboot | GPIO for the cover button |
+| `ir` | `pin`, `codes` | `pin` reboot; `codes` live | GPIO for the IR receiver; `codes` maps received NEC codes to arbitrary state patches, looked up fresh on every keypress |
+| `logging` | `enabled`, `level` | live | Disabled by default; `level` is one of `debug`/`info`/`warning`/`error`; both checked on every log call |
+| `watchdog` | `enabled` | reboot | Hardware watchdog (see below); disabled by default, enable on production devices; checked once at startup — the RP2040 watchdog can't be disarmed once running anyway |
 
 `runtime` is a further top-level key that appears once the device is running
 (e.g. `runtime.wifi.connected`/`ip`) — it's written by channels, read like any

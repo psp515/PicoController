@@ -44,6 +44,35 @@ if "machine" not in sys.modules:
     machine_stub.Pin = _PinStub
     sys.modules["machine"] = machine_stub
 
+# channels/wifi.py imports network, a MicroPython-only module. Stub it so
+# CPython can import and exercise that code under test; tests replace the
+# channel's _wlan with their own fake.
+if "network" not in sys.modules:
+    network_stub = types.ModuleType("network")
+    network_stub.STA_IF = 0
+
+    class _WLANStub:
+        def __init__(self, interface):
+            self.interface = interface
+
+        def active(self, value=None):
+            pass
+
+        def connect(self, ssid, password):
+            pass
+
+        def isconnected(self):
+            return False
+
+        def disconnect(self):
+            pass
+
+        def ifconfig(self):
+            return ("0.0.0.0", "0.0.0.0", "0.0.0.0", "0.0.0.0")
+
+    network_stub.WLAN = _WLANStub
+    sys.modules["network"] = network_stub
+
 # renderer.py imports neopixel, a MicroPython-only driver. Stub it with a
 # bytearray-backed buffer so CPython can exercise the renderer's tiling logic.
 if "neopixel" not in sys.modules:

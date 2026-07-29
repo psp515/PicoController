@@ -80,7 +80,19 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   (current mode, mode parameters, brightness) so state survives power cycles.
 - for development `config.dev.json` should be used 
 - Changes are dynamic: applying config via Web API or WebUI "save" takes effect
-  immediately, no reboot.
+  immediately, no reboot. This includes `wifi.*` (channel reconnects; reverts
+  to last-known-good credentials if the new ones never connect) and `mqtt.*`
+  (channel tears the session down, publishes `offline` on the old topic, and
+  reconnects with the new config).
+- Boot-only exceptions: pin assignments (`leds.pin`, `button.pin`, `ir.pin` —
+  pin changes imply rewiring, reboot is free), `watchdog.enabled` (RP2040 WDT
+  can't be disarmed once armed), `leds.on_after_boot` (boot-only by nature).
+- Every config key must be documented in the docs config tables — the
+  channel page's "Used configuration" table and/or the "Top-level keys"
+  table in `docs/development.md` — with its default, what it's used for,
+  and an **Applies** column stating whether a change takes effect live or
+  requires a reboot. Adding or changing a config key means updating those
+  tables in the same change.
 - Writes: temp file + `os.rename()` (atomic, protects against corruption).
 - Debounce/batch saves — never write flash per frame or per slider tick.
 - Missing or corrupt file → fall back to built-in defaults and recreate the file.
@@ -114,6 +126,33 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 - Introduce an abstraction only when it clearly helps extensibility
   (animations, comm channels, LED drivers) — otherwise keep it flat.
 - Don't comment 
+
+## Planning work (IMPORTANT)
+
+When planning any task (plan mode, a todo list, or a multi-step change),
+structure the plan as a sequence of **small steps**, each independently
+verifiable. Never plan one big "implement everything, then test" step.
+
+Each step follows this cycle:
+
+1. **Add the test first, when possible** — if the new behavior can be
+   expressed as a test before the code exists (new function, new validation
+   rule, new channel behavior), write the failing test first, then make it
+   pass. If a test-first approach isn't practical (e.g. hardware-bound code
+   needing new stubs, large refactors), write the test in the same step,
+   immediately after the change — never defer tests to a later step.
+2. **Make one small code change** — one behavior, one module, one concern.
+3. **Check tests** — run `python -m pytest` (plus `python -m ruff check src
+   main.py` and `python -m compileall -q src main.py`) after every step, not
+   only at the end.
+4. **Fix failures before moving on** — a step is done only when lint,
+   compile-check, and tests are green. Don't start the next step on top of a
+   red suite.
+
+Steps should be small enough that a failure clearly points at the change
+that caused it. Docs/CLAUDE.md updates required by the change (see
+[Keeping this file and the docs in sync](#keeping-this-file-and-the-docs-in-sync))
+are part of the plan too — as their own step, in the same change.
 
 ## Development
 

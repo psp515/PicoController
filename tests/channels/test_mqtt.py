@@ -32,6 +32,9 @@ class FakeClient:
     async def subscribe(self, topic, qos):
         self.subscribed.append((topic, qos))
 
+    def close(self):
+        self.closed = True
+
 
 def make_channel(data):
     state = StateManager(data)
@@ -193,6 +196,61 @@ def test_publish_state_sends_full_mode_and_leds_on_change():
     assert data["mode"] == {"current": "static", "on": True}
     assert data["leds"] == {"count": 10, "segmenting": {"enabled": False, "length": 5}}
     assert data["device"] == state.device_id
+
+
+def test_on_change_mqtt_patch_triggers_restart_not_publish():
+    channel, _ = make_channel({})
+
+    channel._on_change({"mqtt": {"server": "broker.local"}})
+
+    assert channel._restart.is_set()
+    assert not channel._changed.is_set()
+
+
+def test_on_change_wifi_patch_triggers_restart():
+    channel, _ = make_channel({})
+
+    channel._on_change({"wifi": {"ssid": "new"}})
+
+    assert channel._restart.is_set()
+
+
+def test_on_change_other_patch_triggers_publish_not_restart():
+    channel, _ = make_channel({})
+
+    channel._on_change({"mode": {"on": False}})
+
+    assert channel._changed.is_set()
+    assert not channel._restart.is_set()
+
+
+def test_teardown_publishes_offline_and_closes_client():
+    channel, _ = make_channel({})
+    channel._base = "mytopic"
+    client = FakeClient()
+    channel._client = client
+
+    asyncio.run(channel._teardown())
+
+    assert ("mytopic/state/online", "offline", True, 0) in client.published
+    assert client.closed is True
+    assert channel._client is None
+
+
+def test_session_disabled_without_server_wakes_on_restart():
+    channel, state = make_channel({"mqtt": {"server": ""}})
+
+    async def run():
+        task = asyncio.create_task(channel._session())
+        await asyncio.sleep(0.01)
+        assert not task.done()
+        state.subscribe(channel._on_change)
+        state.update({"mqtt": {"server": "broker.local"}})
+        await asyncio.sleep(0.01)
+        assert task.done()
+
+    channel._running = True
+    asyncio.run(run())
 
 
 def test_single_topic_joins_update_and_full():
