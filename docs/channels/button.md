@@ -81,6 +81,7 @@ Read from the `button` section of `config.json` (defaults in
 | Config key | Default | Used for | Applies |
 |---|---|---|---|
 | `button.pin` | `3` | GPIO pin the button is wired to (active low, internal pull-up) | reboot required |
+| `button.enabled` | `true` | `false` makes the channel ignore the button entirely — the loop just sleeps (`DISABLED_POLL_MS`) instead of polling the pin | live — picked up within one `DISABLED_POLL_MS` (1 s) |
 
 The press-timing thresholds (`POLL_MS`, `STABLE_POLLS`, `LONG_PRESS_MS`,
 `ABORT_MS`) are module constants in `src/channels/button.py`, not config —

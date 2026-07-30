@@ -24,6 +24,24 @@ ALLOWED_SET_KEYS = {
 }
 
 
+class MqttTopics:
+    def __init__(self, base, single):
+        self.base = base
+        self._single = single
+
+    @property
+    def incoming_updates(self):
+        return self.base + ("/state" if self._single else "/state/update")
+
+    @property
+    def update_events(self):
+        return self.base + ("/state" if self._single else "/state/full")
+
+    @property
+    def online_status(self):
+        return self.base + "/state/online"
+
+
 class MqttChannel(Channel):
     name = "mqtt"
 
@@ -32,51 +50,150 @@ class MqttChannel(Channel):
         self._running = False
         self._client = None
         self._tasks = []
-        self._base = "controller/led/1"
-        self._single = False
-        self._changed = asyncio.Event()
-        self._restart = asyncio.Event()
+        self._topics = MqttTopics("controller/led/1", False)
+        self._state_publish_requested = asyncio.Event()
+        self._session_restart = asyncio.Event()
+
+    # --- Channel lifecycle ---
+
+    async def start(self):
+        self._running = True
+        self.state.subscribe(self._on_change)
+        while self._running:
+            self._clear_session_restart_request()
+            await self._session()
+            await self._teardown()
+            if self._running and self._session_restart_requested():
+                self.logger.info("mqtt", "config changed, restarting")
+
+    async def stop(self):
+        self._running = False
+        self._request_session_restart()
+        await self._teardown()
+        self.logger.info("mqtt", "stopped")
+
+    # --- Session state machine ---
+
+    async def _session(self):
+        if await self._wait_if_disabled():
+            return
+        if not await self._initialize_session():
+            return
+        if not await self._connect_with_retries():
+            return
+        self._start_session_tasks()
+        await self._wait_for_session_restart()
+
+    async def _wait_if_disabled(self):
+        reason = self._disabled_reason()
+        if not reason:
+            return False
+        self.logger.info("mqtt", "disabled: {0}", reason)
+        await self._wait_for_session_restart()
+        return True
+
+    async def _initialize_session(self):
+        await self._wait_for_wifi_connected()
+        if not self._session_alive():
+            return False
+        self._load_topic_config()
+        if self.state.get("mqtt", "ssl", default=False) and not await self._sync_time_with_retries():
+            return False
+        self._client = self._build_client()
+        return True
+
+    async def _connect_with_retries(self):
+        server = self.state.get("mqtt", "server")
+        while self._session_alive():
+            gc.collect()
+            self.logger.debug("mqtt", "free memory before connect: {0}", gc.mem_free())
+            try:
+                await self._client.connect()
+            except OSError as e:
+                self.logger.warning("mqtt", "connect to {0} failed, retry in {1}ms: {2}", server, RETRY_MS, e)
+                await self._sleep_unless_session_restarts(RETRY_MS)
+                continue
+            self.logger.info("mqtt", "connected to {0}:{1}", server, self.state.get("mqtt", "port", default=1883))
+            return True
+        return False
+
+    def _start_session_tasks(self):
+        self._tasks = [
+            asyncio.create_task(self._handle_up()),
+            asyncio.create_task(self._handle_messages()),
+            asyncio.create_task(self._publish_state()),
+        ]
+
+    async def _teardown(self):
+        for task in self._tasks:
+            task.cancel()
+        self._tasks = []
+        if self._client:
+            try:
+                await self._client.publish(self._topics.online_status, "offline", True, 0)
+            except OSError:
+                pass
+            self._client.close()
+            self._client = None
+
+    # --- Restart & publish signalling ---
 
     def _on_change(self, patch):
         if "mqtt" in patch or "wifi" in patch:
-            self._restart.set()
+            self._request_session_restart()
         else:
-            self._changed.set()
+            self._request_state_publish()
 
-    def _active(self):
-        return self._running and not self._restart.is_set()
+    def _request_session_restart(self):
+        self._session_restart.set()
 
-    async def _sleep_watching(self, ms):
+    def _session_restart_requested(self):
+        return self._session_restart.is_set()
+
+    def _clear_session_restart_request(self):
+        self._session_restart.clear()
+
+    async def _wait_for_session_restart(self):
+        await self._session_restart.wait()
+
+    def _request_state_publish(self):
+        self._state_publish_requested.set()
+
+    def _session_alive(self):
+        return self._running and not self._session_restart_requested()
+
+    async def _sleep_unless_session_restarts(self, ms):
         waited = 0
-        while self._active() and waited < ms:
+        while self._session_alive() and waited < ms:
             await asyncio.sleep_ms(RETRY_SLICE_MS)
             waited += RETRY_SLICE_MS
 
-    def _update_topic(self):
-        return self._base + ("/state" if self._single else "/state/update")
+    # --- Enablement ---
 
-    def _full_topic(self):
-        return self._base + ("/state" if self._single else "/state/full")
+    def _disabled_reason(self):
+        if not self.state.get("mqtt", "enabled", default=True):
+            return "mqtt.enabled is false"
+        if not self.state.get("mqtt", "server", default=""):
+            return "no server configured"
+        if not self.state.get("wifi", "ssid", default=""):
+            return "wifi is disabled"
+        return None
 
-    def _build_client(self):
-        cfg = dict(mqtt_config)
-        server = self.state.get("mqtt", "server")
-        cfg["client_id"] = self.state.device_id.encode()
-        cfg["server"] = server
-        cfg["port"] = self.state.get("mqtt", "port", default=1883)
-        cfg["user"] = self.state.get("mqtt", "user", default="")
-        cfg["password"] = self.state.get("mqtt", "password", default="")
-        cfg["ssid"] = self.state.get("wifi", "ssid", default="")
-        cfg["wifi_pw"] = self.state.get("wifi", "password", default="")
-        cfg["will"] = (self._base + "/state/online", "offline", True, 0)
-        cfg["queue_len"] = 4
-        ssl_enabled = self.state.get("mqtt", "ssl", default=False)
-        cfg["ssl"] = ssl_enabled
-        if ssl_enabled:
-            ssl_params = dict(self.state.get("mqtt", "ssl_params", default={}))
-            ssl_params.setdefault("server_hostname", server)
-            cfg["ssl_params"] = ssl_params
-        return MQTTClient(cfg)
+    # --- Connection setup ---
+
+    async def _wait_for_wifi_connected(self):
+        while self._session_alive() and not self.state.get("runtime", "wifi", "connected"):
+            await asyncio.sleep_ms(WIFI_POLL_MS)
+
+    def _load_topic_config(self):
+        base = self.state.get("mqtt", "base_topic", default="")
+        single = self.state.get("mqtt", "use_single_topic_for_state_update", default=False)
+        self._topics = MqttTopics(base, single)
+
+    async def _sync_time_with_retries(self):
+        while self._session_alive() and not self._sync_time():
+            await self._sleep_unless_session_restarts(NTP_RETRY_MS)
+        return self._session_alive()
 
     def _sync_time(self):
         host = self.state.get("mqtt", "ntp_host", default="pool.ntp.org")
@@ -104,28 +221,40 @@ class MqttChannel(Channel):
         self.logger.info("mqtt", "time synced via {0}", host)
         return True
 
+    def _build_client(self):
+        cfg = dict(mqtt_config)
+        server = self.state.get("mqtt", "server")
+        cfg["client_id"] = self.state.device_id.encode()
+        cfg["server"] = server
+        cfg["port"] = self.state.get("mqtt", "port", default=1883)
+        cfg["user"] = self.state.get("mqtt", "user", default="")
+        cfg["password"] = self.state.get("mqtt", "password", default="")
+        cfg["ssid"] = self.state.get("wifi", "ssid", default="")
+        cfg["wifi_pw"] = self.state.get("wifi", "password", default="")
+        cfg["will"] = (self._topics.online_status, "offline", True, 0)
+        cfg["queue_len"] = 4
+        ssl_enabled = self.state.get("mqtt", "ssl", default=False)
+        cfg["ssl"] = ssl_enabled
+        if ssl_enabled:
+            ssl_params = dict(self.state.get("mqtt", "ssl_params", default={}))
+            ssl_params.setdefault("server_hostname", server)
+            cfg["ssl_params"] = ssl_params
+        return MQTTClient(cfg)
+
+    # --- Background tasks ---
+
     async def _handle_up(self):
         while self._running:
             await self._client.up.wait()
             self._client.up.clear()
             try:
-                await self._client.subscribe(self._update_topic(), 0)
-                await self._client.publish(self._base + "/state/online", "online", True, 0)
+                await self._client.subscribe(self._topics.incoming_updates, 0)
+                await self._client.publish(self._topics.online_status, "online", True, 0)
             except OSError as e:
-                self.logger.warning("mqtt", "failed to subscribe/announce on {0}: {1}", self._base, e)
+                self.logger.warning("mqtt", "failed to subscribe/announce on {0}: {1}", self._topics.base, e)
                 continue
-            self.logger.info("mqtt", "session up, subscribed {0}", self._update_topic())
-            self._changed.set()
-
-    def _filter_set_patch(self, patch):
-        allowed = {}
-        for key, fields in patch.items():
-            if key not in ALLOWED_SET_KEYS or not isinstance(fields, dict):
-                continue
-            filtered_fields = {k: v for k, v in fields.items() if k in ALLOWED_SET_KEYS[key]}
-            if filtered_fields:
-                allowed[key] = filtered_fields
-        return allowed
+            self.logger.info("mqtt", "session up, subscribed {0}", self._topics.incoming_updates)
+            self._request_state_publish()
 
     async def _handle_messages(self):
         async for topic, msg, retained in self._client.queue:
@@ -138,6 +267,7 @@ class MqttChannel(Channel):
                 self.logger.warning("mqtt", "payload on {0} is not an object", topic)
                 continue
             if patch.get("device") == self.state.device_id:
+                self.logger.info("mqtt", "ignoring own payload on {0}", topic)
                 continue
             allowed = self._filter_set_patch(patch)
             if allowed:
@@ -145,10 +275,20 @@ class MqttChannel(Channel):
             else:
                 self.logger.warning("mqtt", "payload on {0} had no allowed keys", topic)
 
+    def _filter_set_patch(self, patch):
+        allowed = {}
+        for key, fields in patch.items():
+            if key not in ALLOWED_SET_KEYS or not isinstance(fields, dict):
+                continue
+            filtered_fields = {k: v for k, v in fields.items() if k in ALLOWED_SET_KEYS[key]}
+            if filtered_fields:
+                allowed[key] = filtered_fields
+        return allowed
+
     async def _publish_state(self):
         while self._running:
-            await self._changed.wait()
-            self._changed.clear()
+            await self._state_publish_requested.wait()
+            self._state_publish_requested.clear()
             payload = json.dumps(
                 {
                     "device": self.state.device_id,
@@ -160,71 +300,6 @@ class MqttChannel(Channel):
                 }
             )
             try:
-                await self._client.publish(self._full_topic(), payload, True, 0)
+                await self._client.publish(self._topics.update_events, payload, True, 0)
             except OSError as e:
-                self.logger.warning("mqtt", "publish to {0} failed: {1}", self._full_topic(), e)
-
-    async def _session(self):
-        server = self.state.get("mqtt", "server", default="")
-        if not server:
-            self.logger.info("mqtt", "no server configured, mqtt disabled")
-            await self._restart.wait()
-            return
-        while self._active() and not self.state.get("runtime", "wifi", "connected"):
-            await asyncio.sleep_ms(WIFI_POLL_MS)
-        if not self._active():
-            return
-        self._base = self.state.get("mqtt", "base_topic", default="")
-        self._single = self.state.get("mqtt", "use_single_topic_for_state_update", default=False)
-        if self.state.get("mqtt", "ssl", default=False):
-            while self._active() and not self._sync_time():
-                await self._sleep_watching(NTP_RETRY_MS)
-            if not self._active():
-                return
-        self._client = self._build_client()
-        while self._active():
-            gc.collect()
-            self.logger.debug("mqtt", "free memory before connect: {0}", gc.mem_free())
-            try:
-                await self._client.connect()
-                break
-            except OSError as e:
-                self.logger.warning("mqtt", "connect to {0} failed, retry in {1}ms: {2}", server, RETRY_MS, e)
-                await self._sleep_watching(RETRY_MS)
-        if not self._active():
-            return
-        self.logger.info("mqtt", "connected to {0}:{1}", server, self.state.get("mqtt", "port", default=1883))
-        self._tasks = [
-            asyncio.create_task(self._handle_up()),
-            asyncio.create_task(self._handle_messages()),
-            asyncio.create_task(self._publish_state()),
-        ]
-        await self._restart.wait()
-
-    async def _teardown(self):
-        for task in self._tasks:
-            task.cancel()
-        self._tasks = []
-        if self._client:
-            try:
-                await self._client.publish(self._base + "/state/online", "offline", True, 0)
-            except OSError:
-                pass
-            self._client.close()
-            self._client = None
-
-    async def start(self):
-        self._running = True
-        self.state.subscribe(self._on_change)
-        while self._running:
-            self._restart.clear()
-            await self._session()
-            await self._teardown()
-            if self._running and self._restart.is_set():
-                self.logger.info("mqtt", "config changed, restarting")
-
-    async def stop(self):
-        self._running = False
-        self._restart.set()
-        await self._teardown()
-        self.logger.info("mqtt", "stopped")
+                self.logger.warning("mqtt", "publish to {0} failed: {1}", self._topics.update_events, e)

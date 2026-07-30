@@ -87,6 +87,11 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 - Boot-only exceptions: pin assignments (`leds.pin`, `button.pin`, `ir.pin` —
   pin changes imply rewiring, reboot is free), `watchdog.enabled` (RP2040 WDT
   can't be disarmed once armed), `leds.on_after_boot` (boot-only by nature).
+- Every channel except wifi has an `enabled` flag (`mqtt.enabled`,
+  `webapi.enabled`, `button.enabled`, `ir.enabled`, default true, dynamic):
+  disabled channels skip their work loop and just sleep/wait. Wifi's
+  "disabled" state is an empty `ssid`; a disabled wifi also disables mqtt
+  (mqtt requires non-empty `wifi.ssid`).
 - Every config key must be documented in the docs config tables — the
   channel page's "Used configuration" table and/or the "Top-level keys"
   table in `docs/development.md` — with its default, what it's used for,

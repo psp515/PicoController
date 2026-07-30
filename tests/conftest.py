@@ -36,13 +36,41 @@ if "machine" not in sys.modules:
             self.value = value
 
     class _PinStub:
+        IN = 0
+        OUT = 1
+        PULL_UP = 2
+
         def __init__(self, pin, *args, **kwargs):
             self.pin = pin
+
+        def value(self):
+            return 1
 
     machine_stub.RTC = _RTCStub
     machine_stub.unique_id = lambda: b"dev"
     machine_stub.Pin = _PinStub
     sys.modules["machine"] = machine_stub
+
+# channels/ir.py imports ir_rx.nec (Peter Hinch micropython_ir), a
+# MicroPython-only library. Stub it so CPython can import and exercise that
+# code under test.
+if "ir_rx" not in sys.modules:
+    ir_rx_stub = types.ModuleType("ir_rx")
+    ir_rx_nec_stub = types.ModuleType("ir_rx.nec")
+
+    class _NEC8Stub:
+        def __init__(self, pin, callback):
+            self.pin = pin
+            self.callback = callback
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    ir_rx_nec_stub.NEC_8 = _NEC8Stub
+    ir_rx_stub.nec = ir_rx_nec_stub
+    sys.modules["ir_rx"] = ir_rx_stub
+    sys.modules["ir_rx.nec"] = ir_rx_nec_stub
 
 # channels/wifi.py imports network, a MicroPython-only module. Stub it so
 # CPython can import and exercise that code under test; tests replace the

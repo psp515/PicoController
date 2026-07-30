@@ -22,7 +22,9 @@ DEFAULTS = {
         "runner": {"length": 5},
     },
     "wifi": {"ssid": "", "password": ""},
+    "webapi": {"enabled": True},
     "mqtt": {
+        "enabled": True,
         "server": "",
         "port": 1883,
         "user": "",
@@ -34,7 +36,7 @@ DEFAULTS = {
         "ntp_host": "pool.ntp.org",
     },
     "logging": {"enabled": False, "level": "info"},
-    "button": {"pin": 3},
-    "ir": {"pin": 2},
+    "button": {"pin": 3, "enabled": True},
+    "ir": {"pin": 2, "enabled": True},
     "watchdog": {"enabled": False},
 }

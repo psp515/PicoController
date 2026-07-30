@@ -84,7 +84,7 @@ Read from the `wifi` section of `config.json` (defaults in
 
 | Config key | Default | Used for | Applies |
 |---|---|---|---|
-| `wifi.ssid` | `""` | Network to join; empty disables the channel entirely | live — channel reconnects (see [1.2](#12-changing-credentials-at-runtime)) |
+| `wifi.ssid` | `""` | Network to join; empty disables the channel entirely — and with it the [MQTT channel](mqtt.md), which requires Wi-Fi to be enabled | live — channel reconnects (see [1.2](#12-changing-credentials-at-runtime)) |
 | `wifi.password` | `""` | Network passphrase | live — channel reconnects (see [1.2](#12-changing-credentials-at-runtime)) |
 
 Set both fields in `config.json` (or `config.dev.json` for local testing)

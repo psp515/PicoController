@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from channels.mqtt import MqttChannel
+from channels.mqtt import MqttChannel, MqttTopics
 from logger.logger import Logger
 from state import StateManager
 
@@ -138,7 +138,7 @@ def test_handle_messages_ignores_own_device_payload():
 
 def test_handle_up_subscribes_to_state_update_and_announces_online():
     channel, _ = make_channel({})
-    channel._base = "mytopic"
+    channel._topics = MqttTopics("mytopic", False)
     channel._running = True
     client = FakeClient()
     channel._client = client
@@ -168,17 +168,17 @@ def test_publish_state_sends_full_mode_and_leds_on_change():
             "leds": {"count": 10, "pin": 0, "segmenting": {"enabled": False, "length": 5}},
         }
     )
-    channel._base = "controller/led/1"
+    channel._topics = MqttTopics("controller/led/1", False)
     channel._running = True
     client = FakeClient()
     channel._client = client
 
     async def run_briefly():
-        channel._changed.set()
+        channel._state_publish_requested.set()
         task = asyncio.create_task(channel._publish_state())
         await asyncio.sleep(0.01)
         channel._running = False
-        channel._changed.set()
+        channel._state_publish_requested.set()
         task.cancel()
         try:
             await task
@@ -203,8 +203,8 @@ def test_on_change_mqtt_patch_triggers_restart_not_publish():
 
     channel._on_change({"mqtt": {"server": "broker.local"}})
 
-    assert channel._restart.is_set()
-    assert not channel._changed.is_set()
+    assert channel._session_restart.is_set()
+    assert not channel._state_publish_requested.is_set()
 
 
 def test_on_change_wifi_patch_triggers_restart():
@@ -212,7 +212,7 @@ def test_on_change_wifi_patch_triggers_restart():
 
     channel._on_change({"wifi": {"ssid": "new"}})
 
-    assert channel._restart.is_set()
+    assert channel._session_restart.is_set()
 
 
 def test_on_change_other_patch_triggers_publish_not_restart():
@@ -220,13 +220,13 @@ def test_on_change_other_patch_triggers_publish_not_restart():
 
     channel._on_change({"mode": {"on": False}})
 
-    assert channel._changed.is_set()
-    assert not channel._restart.is_set()
+    assert channel._state_publish_requested.is_set()
+    assert not channel._session_restart.is_set()
 
 
 def test_teardown_publishes_offline_and_closes_client():
     channel, _ = make_channel({})
-    channel._base = "mytopic"
+    channel._topics = MqttTopics("mytopic", False)
     client = FakeClient()
     channel._client = client
 
@@ -253,26 +253,45 @@ def test_session_disabled_without_server_wakes_on_restart():
     asyncio.run(run())
 
 
-def test_single_topic_joins_update_and_full():
-    channel, _ = make_channel({})
-    channel._base = "mytopic"
-    channel._single = True
+def test_disabled_reason_covers_enabled_server_and_wifi():
+    channel, _ = make_channel({"mqtt": {"enabled": False, "server": "b"}, "wifi": {"ssid": "x"}})
+    assert channel._disabled_reason() == "mqtt.enabled is false"
 
-    assert channel._update_topic() == "mytopic/state"
-    assert channel._full_topic() == "mytopic/state"
+    channel, _ = make_channel({"mqtt": {"server": ""}, "wifi": {"ssid": "x"}})
+    assert channel._disabled_reason() == "no server configured"
+
+    channel, _ = make_channel({"mqtt": {"server": "b"}, "wifi": {"ssid": ""}})
+    assert channel._disabled_reason() == "wifi is disabled"
+
+    channel, _ = make_channel({"mqtt": {"server": "b"}, "wifi": {"ssid": "x"}})
+    assert channel._disabled_reason() is None
+
+
+def test_single_topic_joins_update_and_full():
+    topics = MqttTopics("mytopic", True)
+
+    assert topics.incoming_updates == "mytopic/state"
+    assert topics.update_events == "mytopic/state"
+
+
+def test_two_topic_mode_splits_update_and_full():
+    topics = MqttTopics("mytopic", False)
+
+    assert topics.incoming_updates == "mytopic/state/update"
+    assert topics.update_events == "mytopic/state/full"
+    assert topics.online_status == "mytopic/state/online"
 
 
 def test_single_topic_subscribe_and_publish_use_joined_topic():
     channel, _ = make_channel({"mode": {"current": "static", "on": True}})
-    channel._base = "mytopic"
-    channel._single = True
+    channel._topics = MqttTopics("mytopic", True)
     channel._running = True
     client = FakeClient()
     channel._client = client
 
     async def run_briefly():
         client.up.set()
-        channel._changed.set()
+        channel._state_publish_requested.set()
         tasks = [
             asyncio.create_task(channel._handle_up()),
             asyncio.create_task(channel._publish_state()),
@@ -280,7 +299,7 @@ def test_single_topic_subscribe_and_publish_use_joined_topic():
         await asyncio.sleep(0.01)
         channel._running = False
         client.up.set()
-        channel._changed.set()
+        channel._state_publish_requested.set()
         for task in tasks:
             task.cancel()
         for task in tasks:
