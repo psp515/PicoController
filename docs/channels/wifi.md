@@ -105,7 +105,10 @@ produced by this channel at runtime and only ever read by others.
 |---|---|---|
 | `start()` | `Channel` interface | Runs the workflow in [1.1](#11-basic-workflow); the device's single long-lived entry point for this channel |
 | `stop()` | `Channel` interface | Disconnects and deactivates the radio |
-| `_run(ssid, password)` | internal | One connection cycle: connect/monitor/backoff loop for one set of credentials, exits when the `wifi` config changes; also implements the bad-credential revert in [1.2](#12-changing-credentials-at-runtime) |
+| `_keep_connected(ssid, password)` | internal | One connection cycle: connect/monitor/backoff loop for one set of credentials, exits when a reconnect is requested |
 | `_connect(ssid, password)` | internal | One bounded connection attempt, `await`-polled up to `CONNECT_TIMEOUT_MS` |
-| `_on_change(patch)` | internal | `StateManager` subscriber; flags a reconnect when a patch touches the `wifi` section |
+| `_reset_radio()` | internal | Deactivates the radio and pauses `RADIO_RESET_MS` before a cycle begins |
+| `_on_change(patch)` | internal | `StateManager` subscriber; delegates to `_request_reconnect_if_wifi_changed` |
+| `_request_reconnect_if_wifi_changed(patch)` / `_reconnect_requested()` / `_clear_reconnect_request()` / `_wait_for_wifi_config_change()` | internal | Intention-named wrappers around the channel's reconnect event — firing, checking, clearing, and awaiting it |
+| `_should_revert_credentials(...)` / `_revert_to_last_good(failures)` | internal | The bad-credential safeguard from [1.2](#12-changing-credentials-at-runtime): decides when new credentials are hopeless and writes the last-known-good ones back into state |
 | `_publish(connected, ip)` | internal | De-dupes against the last known state, logs on change, and writes `runtime.wifi.connected`/`ip` |
