@@ -29,6 +29,7 @@
         "use_single_topic_for_state_update": false,
         "ssl": false,
         "ssl_params": {},
+        "certificate": {"validate": false, "name": ""},
         "ntp_host": "pool.ntp.org"
     },
     "logging": {"enabled": false, "level": "info"},

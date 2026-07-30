@@ -1,6 +1,7 @@
 import asyncio
 import json
 
+import channels.mqtt as mqtt_module
 from channels.mqtt import MqttChannel, MqttTopics
 from logger.logger import Logger
 from state import StateManager
@@ -265,6 +266,106 @@ def test_disabled_reason_covers_enabled_server_and_wifi():
 
     channel, _ = make_channel({"mqtt": {"server": "b"}, "wifi": {"ssid": "x"}})
     assert channel._disabled_reason() is None
+
+
+def test_disabled_reason_ignores_certificate_when_ssl_off(tmp_path, monkeypatch):
+    monkeypatch.setattr(mqtt_module, "CERTS_DIR", str(tmp_path))
+    channel, _ = make_channel(
+        {
+            "mqtt": {"server": "b", "ssl": False, "certificate": {"validate": True, "name": "missing.pem"}},
+            "wifi": {"ssid": "x"},
+        }
+    )
+    assert channel._disabled_reason() is None
+
+
+def test_disabled_reason_certificate_missing_name(tmp_path, monkeypatch):
+    monkeypatch.setattr(mqtt_module, "CERTS_DIR", str(tmp_path))
+    channel, _ = make_channel(
+        {
+            "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": ""}},
+            "wifi": {"ssid": "x"},
+        }
+    )
+    assert channel._disabled_reason() == "certificate name is empty"
+
+
+def test_disabled_reason_certificate_name_rejects_path_separator(tmp_path, monkeypatch):
+    monkeypatch.setattr(mqtt_module, "CERTS_DIR", str(tmp_path))
+    channel, _ = make_channel(
+        {
+            "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": "../secrets.pem"}},
+            "wifi": {"ssid": "x"},
+        }
+    )
+    assert channel._disabled_reason() == "certificate name ../secrets.pem is invalid"
+
+
+def test_disabled_reason_certificate_file_not_readable(tmp_path, monkeypatch):
+    monkeypatch.setattr(mqtt_module, "CERTS_DIR", str(tmp_path))
+    channel, _ = make_channel(
+        {
+            "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": "ca.pem"}},
+            "wifi": {"ssid": "x"},
+        }
+    )
+    assert channel._disabled_reason() == f"certificate {tmp_path}/ca.pem not readable"
+
+
+def test_disabled_reason_certificate_file_present(tmp_path, monkeypatch):
+    monkeypatch.setattr(mqtt_module, "CERTS_DIR", str(tmp_path))
+    (tmp_path / "ca.pem").write_bytes(b"cert bytes")
+    channel, _ = make_channel(
+        {
+            "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": "ca.pem"}},
+            "wifi": {"ssid": "x"},
+        }
+    )
+    assert channel._disabled_reason() is None
+
+
+def test_build_client_ssl_without_certificate_validation_has_no_cadata():
+    channel, _ = make_channel({"mqtt": {"server": "b", "ssl": True}})
+    client = channel._build_client()
+    assert "cadata" not in client.cfg["ssl_params"]
+    assert "cert_reqs" not in client.cfg["ssl_params"]
+
+
+def test_build_client_certificate_validation_sets_cadata_and_cert_reqs(tmp_path, monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(mqtt_module, "CERTS_DIR", str(tmp_path))
+    (tmp_path / "ca.pem").write_bytes(b"cert bytes")
+    channel, _ = make_channel(
+        {"mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": "ca.pem"}}}
+    )
+
+    client = channel._build_client()
+
+    assert client.cfg["ssl_params"]["cadata"] == b"cert bytes"
+    assert client.cfg["ssl_params"]["cert_reqs"] == ssl.CERT_REQUIRED
+
+
+def test_build_client_user_ssl_params_win_over_certificate_defaults(tmp_path, monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(mqtt_module, "CERTS_DIR", str(tmp_path))
+    (tmp_path / "ca.pem").write_bytes(b"cert bytes")
+    channel, _ = make_channel(
+        {
+            "mqtt": {
+                "server": "b",
+                "ssl": True,
+                "certificate": {"validate": True, "name": "ca.pem"},
+                "ssl_params": {"cert_reqs": ssl.CERT_OPTIONAL},
+            }
+        }
+    )
+
+    client = channel._build_client()
+
+    assert client.cfg["ssl_params"]["cert_reqs"] == ssl.CERT_OPTIONAL
+    assert client.cfg["ssl_params"]["cadata"] == b"cert bytes"
 
 
 def test_single_topic_joins_update_and_full():

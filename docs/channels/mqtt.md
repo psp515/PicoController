@@ -9,10 +9,13 @@ nav_order: 3
 
 Implemented in `src/channels/mqtt.py`. Only active if `mqtt.enabled` is true
 (the default), `mqtt.server` is set, **and** Wi-Fi is enabled (non-empty
-`wifi.ssid`) — a disabled Wi-Fi channel implies a disabled MQTT channel.
-When any of those isn't met, `start()` waits without touching the network
-(logging which condition failed) until the `mqtt`/`wifi` config changes, so
-enabling the channel at runtime (e.g. via the Web API) needs no reboot.
+`wifi.ssid`) — a disabled Wi-Fi channel implies a disabled MQTT channel. If
+`mqtt.certificate.validate` is also on (see
+[1.4](#14-certificate-validation)), the configured CA certificate must be
+readable too. When any of those isn't met, `start()` waits without touching
+the network (logging which condition failed) until the `mqtt`/`wifi` config
+changes, so enabling the channel at runtime (e.g. via the Web API) needs no
+reboot.
 
 ## What you can do with it
 
@@ -65,6 +68,11 @@ project rule of never using the blocking `umqtt.simple`/`umqtt.robust` clients.
   before the first connect attempt, retrying every `NTP_RETRY_MS` until it
   succeeds. If the network can't reach the NTP host, SSL mode never proceeds
   to connecting.
+- **Certificate validation is opt-in and fail-closed.** `mqtt.ssl: true` alone
+  doesn't verify the broker's identity; `mqtt.certificate.validate: true`
+  does, and disables the channel rather than falling back to unverified TLS
+  if the configured cert can't be read — see
+  [1.4](#14-certificate-validation).
 - **Reconnection is `mqtt_as`'s job, not ours.** The channel doesn't implement
   its own reconnect loop for an established session — it awaits
   `client.up`, which `mqtt_as` sets/clears internally, and just re-subscribes
@@ -104,9 +112,11 @@ state changes once (`self.state.subscribe(self._on_change)` — the app's own
 `StateManager` pub/sub, not MQTT), then loops over *sessions* (`_session`),
 one per set of `mqtt`/`wifi` config. Each session, in order:
 
-1. If the channel is disabled (`mqtt.enabled` false, empty `mqtt.server`, or
-   empty `wifi.ssid`), log the reason and wait until the `mqtt`/`wifi`
-   section changes — done.
+1. If the channel is disabled (`mqtt.enabled` false, empty `mqtt.server`,
+   empty `wifi.ssid`, or an unusable certificate when `mqtt.ssl` and
+   `mqtt.certificate.validate` are both true — see
+   [1.4](#14-certificate-validation)), log the reason and wait until the
+   `mqtt`/`wifi` section changes — done.
 2. Wait for `runtime.wifi.connected`.
 3. Read `mqtt.base_topic`.
 4. If `mqtt.ssl` is true, sync the clock over NTP, retrying until it works.
@@ -150,7 +160,9 @@ Read from the `mqtt` section of `config.json` (defaults in `src/defaults.py`):
 | `mqtt.base_topic` | `controller/led/1` | Prefix for every topic this channel uses | live — session restart |
 | `mqtt.use_single_topic_for_state_update` | `false` | When `true`, joins `state/update` and `state/full` into one topic, `<base_topic>/state` — see [2.2](#22-single-topic-mode) | live — session restart |
 | `mqtt.ssl` | `false` | Enables TLS; also gates the NTP sync step | live — session restart |
-| `mqtt.ssl_params` | `{}` | Passed through to `mqtt_as`; `server_hostname` is filled in from `mqtt.server` if not already set | live — session restart |
+| `mqtt.ssl_params` | `{}` | Passed through to `mqtt_as`; `server_hostname` is filled in from `mqtt.server`, and (when certificate validation is on) `cadata`/`cert_reqs` are filled in from `mqtt.certificate` — any of these keys set explicitly here wins over the auto-filled value | live — session restart |
+| `mqtt.certificate.validate` | `false` | Enables broker certificate verification (see [1.4](#14-certificate-validation)); when `true`, a missing/invalid `mqtt.certificate.name` disables the channel (fail-closed, same mechanism as [1.3](#13-used-configuration) above) | live — session restart |
+| `mqtt.certificate.name` | `""` | Filename (no path separators) of the CA certificate under `certs/` on the device filesystem, read when `mqtt.certificate.validate` is true | live — session restart |
 | `mqtt.ntp_host` | `pool.ntp.org` | NTP server used only when `mqtt.ssl` is true | live — session restart |
 
 `_build_client` maps these onto the `mqtt_as` client config, plus a few
@@ -159,6 +171,41 @@ derived from `machine.unique_id()`), `wifi_pw`/`ssid` (from the `wifi`
 section, so `mqtt_as` can manage the Wi-Fi connection itself), `queue_len: 4`,
 and `will` (the last-will topic/payload described in
 [3.3](#33-last-will--online-status)).
+
+### 1.4 Certificate validation
+
+`mqtt.ssl: true` alone gets you an encrypted connection but does **not**
+verify the broker's identity — `mqtt_as`/`ussl` accept any certificate the
+server presents, so a network-position attacker can MITM the TLS session
+undetected. Setting `mqtt.certificate.validate: true` closes that gap:
+`_build_client` reads the CA certificate from `certs/<mqtt.certificate.name>`
+on the device filesystem (PEM or DER, whatever your CA gives you — the
+underlying `ssl.wrap_socket`/mbedtls binding accepts either) and passes it as
+`cadata` with `cert_reqs = ssl.CERT_REQUIRED`, so the handshake fails closed
+if the broker's chain doesn't validate against it.
+
+This is **fail-closed by design**, matching the same disabled-channel
+mechanism as [1.3](#13-used-configuration): if `mqtt.ssl` and
+`mqtt.certificate.validate` are both true but `mqtt.certificate.name` is
+empty, contains a path separator, or the file isn't readable at
+`certs/<name>`, `_disabled_reason()` reports it and the channel parks itself
+exactly like `mqtt.enabled: false` — it does **not** silently fall back to
+unverified TLS. Fixing it (uploading the missing cert, correcting the name)
+needs no reboot: any `mqtt.*` save re-triggers the session restart in
+[1.2.1](#121-config-changes-at-runtime), which re-runs the check.
+
+Notes:
+
+- `mqtt.server` must be a hostname, not a bare IP — certificate verification
+  checks the presented cert against `ssl_params.server_hostname` (filled in
+  from `mqtt.server`), and CA-issued certs aren't issued for IP addresses.
+- To get a DER file from a PEM one (if you'd rather store DER):
+  `openssl x509 -in cert.pem -outform der -out cert.der`.
+- A handshake failure caused by a genuinely wrong/expired cert isn't treated
+  specially — it surfaces as an `OSError` in `_connect_with_retries`, logged
+  and retried like any other connect failure.
+- The default (`certificate.validate: false`) preserves the previous
+  unverified behavior, so existing setups aren't affected until you opt in.
 
 ## 2. Exposed functions
 
@@ -197,11 +244,12 @@ sections:
 | `_request_state_publish()` | Restart & publish signalling | Fires the event `_publish_state` waits on |
 | `_session_alive()` | Restart & publish signalling | `True` while the channel runs and no session restart is pending; guards every wait/retry loop |
 | `_sleep_unless_session_restarts(ms)` | Restart & publish signalling | Sliced sleep that returns early when a session restart is requested |
-| `_disabled_reason()` | Enablement | Returns why the channel can't run (`mqtt.enabled` false, no server, Wi-Fi disabled) or `None` when it can |
+| `_disabled_reason()` | Enablement | Returns why the channel can't run (`mqtt.enabled` false, no server, Wi-Fi disabled, or — via `_certificate_disabled_reason()` — an unusable certificate when validation is on, see [1.4](#14-certificate-validation)) or `None` when it can |
+| `_certificate_disabled_reason()` | Enablement | Only consulted when `mqtt.ssl` and `mqtt.certificate.validate` are both true; checks `mqtt.certificate.name` is non-empty, has no path separator, and `certs/<name>` is readable |
 | `_wait_for_wifi_connected()` | Connection setup | Polls `runtime.wifi.connected` until up (or a restart intervenes) |
 | `_load_topic_config()` | Connection setup | Reads `base_topic`/single-topic mode into a fresh `MqttTopics` |
 | `_sync_time_with_retries()` / `_sync_time()` | Connection setup | NTP clock sync (needed for TLS); the retry wrapper plus the one-shot sync |
-| `_build_client()` | Connection setup | Builds the `mqtt_as` config dict and `MQTTClient` instance from `state` |
+| `_build_client()` | Connection setup | Builds the `mqtt_as` config dict and `MQTTClient` instance from `state`; when `mqtt.certificate.validate` is true, also fills in `ssl_params.cadata`/`cert_reqs` from `certs/<mqtt.certificate.name>` (see [1.4](#14-certificate-validation)) |
 | `_handle_up()` | Background tasks | Re-subscribes and re-announces online status after every connect/reconnect |
 | `_handle_messages()` | Background tasks | Parses incoming JSON, filters it through the allow-list, applies it to `state` |
 | `_filter_set_patch(patch)` | Background tasks | Implements the allow-list in [3.1.1](#311-allow-list-for-the-update-topic) |

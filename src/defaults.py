@@ -33,6 +33,7 @@ DEFAULTS = {
         "use_single_topic_for_state_update": False,
         "ssl": False,
         "ssl_params": {},
+        "certificate": {"validate": False, "name": ""},
         "ntp_host": "pool.ntp.org",
     },
     "logging": {"enabled": False, "level": "info"},

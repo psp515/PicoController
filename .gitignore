@@ -137,3 +137,6 @@ docs/.jekyll-cache/
 docs/.sass-cache/
 docs/Gemfile.lock
 .claude/settings.json
+
+certs/*.der
+certs/*.pem
