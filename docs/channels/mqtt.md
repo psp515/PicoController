@@ -7,9 +7,12 @@ nav_order: 3
 
 # MQTT channel
 
-Implemented in `src/channels/mqtt.py`. Only active if `mqtt.server` is set in
-the config — otherwise `start()` idles forever (`asyncio.sleep_ms(IDLE_MS)` in
-a loop) and never touches the network.
+Implemented in `src/channels/mqtt.py`. Only active if `mqtt.enabled` is true
+(the default), `mqtt.server` is set, **and** Wi-Fi is enabled (non-empty
+`wifi.ssid`) — a disabled Wi-Fi channel implies a disabled MQTT channel.
+When any of those isn't met, `start()` waits without touching the network
+(logging which condition failed) until the `mqtt`/`wifi` config changes, so
+enabling the channel at runtime (e.g. via the Web API) needs no reboot.
 
 ## What you can do with it
 
@@ -51,8 +54,9 @@ project rule of never using the blocking `umqtt.simple`/`umqtt.robust` clients.
 - **Wi-Fi first.** `start()` blocks (via a non-blocking poll loop, not a real
   block) on `runtime.wifi.connected` before doing anything else — MQTT never
   attempts to connect on its own.
-- **`mqtt.server` must be non-empty.** Empty is the explicit "disabled" state,
-  not an error.
+- **`mqtt.enabled` true, `mqtt.server` non-empty, `wifi.ssid` non-empty.**
+  Any of them missing is an explicit "disabled" state, not an error — the
+  channel logs the reason and waits for a config change.
 - **`machine.unique_id()` must be available** — it's hex-encoded into
   `client_id` (`StateManager.device_id`) so multiple devices on the same
   broker don't collide.
@@ -95,42 +99,59 @@ project rule of never using the blocking `umqtt.simple`/`umqtt.robust` clients.
 
 ### 1.2 Basic workflow
 
-`start()` runs once per boot, in order:
+`start()` runs for the lifetime of the device. It subscribes to internal
+state changes once (`self.state.subscribe(self._on_change)` — the app's own
+`StateManager` pub/sub, not MQTT), then loops over *sessions* (`_session`),
+one per set of `mqtt`/`wifi` config. Each session, in order:
 
-1. If `mqtt.server` is empty, idle forever — done.
+1. If the channel is disabled (`mqtt.enabled` false, empty `mqtt.server`, or
+   empty `wifi.ssid`), log the reason and wait until the `mqtt`/`wifi`
+   section changes — done.
 2. Wait for `runtime.wifi.connected`.
 3. Read `mqtt.base_topic`.
 4. If `mqtt.ssl` is true, sync the clock over NTP, retrying until it works.
 5. Build the `mqtt_as` client from config (`_build_client`).
 6. Attempt `client.connect()`, retrying every `RETRY_MS` on failure.
-7. Subscribe this channel to internal state changes
-   (`self.state.subscribe(self._on_change)`) — this is the app's own
-   `StateManager` pub/sub, not MQTT, and is what triggers republishing below.
-8. Launch three background tasks that run for the rest of the device's
-   lifetime:
+7. Launch three background tasks that run for the rest of the session:
    - `_handle_up` — on every (re)connect, subscribes to
      `<base_topic>/state/update` and publishes `"online"` (retained).
    - `_handle_messages` — drains incoming messages, applies allow-listed
      patches to the shared state.
    - `_publish_state` — whenever the shared state changes, publishes the
      full state (retained).
-9. `start()` itself then just idle-loops — all real work happens in the three
-   tasks above, so `stop()` can cancel them independently.
+8. `_session` itself then just waits — all real work happens in the three
+   tasks above.
+
+### 1.2.1 Config changes at runtime
+
+The whole `mqtt` section is **dynamic**: whenever a state patch touches
+`mqtt` or `wifi` (the client also carries the Wi-Fi credentials), the
+current session ends — the three tasks are cancelled, `"offline"` is
+published (retained) on the old `<base_topic>/state/online` so dashboards
+don't show a ghost device, the client is closed — and a fresh session
+starts, re-reading every `mqtt.*` value. Changing the broker, credentials,
+`base_topic`, SSL settings, or single-topic mode therefore takes effect
+without a reboot; the swap happens within `RETRY_SLICE_MS`-sized wait
+slices, typically well under a second after the patch. Note the `mqtt`
+section can only be patched via the [Web API](webapi.md) — it is
+deliberately not on this channel's own allow-list
+([3.1.1](#311-allow-list-for-the-update-topic)).
 
 ### 1.3 Used configuration
 
 Read from the `mqtt` section of `config.json` (defaults in `src/defaults.py`):
 
-| Config key | Default | Used for |
-|---|---|---|
-| `mqtt.server` | `""` | Broker host; empty disables the channel entirely |
-| `mqtt.port` | `1883` | Broker port |
-| `mqtt.user` / `mqtt.password` | `""` / `""` | Broker credentials |
-| `mqtt.base_topic` | `controller/led/1` | Prefix for every topic this channel uses |
-| `mqtt.use_single_topic_for_state_update` | `false` | When `true`, joins `state/update` and `state/full` into one topic, `<base_topic>/state` — see [2.2](#22-single-topic-mode) |
-| `mqtt.ssl` | `false` | Enables TLS; also gates the NTP sync step |
-| `mqtt.ssl_params` | `{}` | Passed through to `mqtt_as`; `server_hostname` is filled in from `mqtt.server` if not already set |
-| `mqtt.ntp_host` | `pool.ntp.org` | NTP server used only when `mqtt.ssl` is true |
+| Config key | Default | Used for | Applies |
+|---|---|---|---|
+| `mqtt.enabled` | `true` | Master switch for the channel; `false` disables it regardless of the other keys | live — session restart ([1.2.1](#121-config-changes-at-runtime)) |
+| `mqtt.server` | `""` | Broker host; empty disables the channel entirely | live — session restart |
+| `mqtt.port` | `1883` | Broker port | live — session restart |
+| `mqtt.user` / `mqtt.password` | `""` / `""` | Broker credentials | live — session restart |
+| `mqtt.base_topic` | `controller/led/1` | Prefix for every topic this channel uses | live — session restart |
+| `mqtt.use_single_topic_for_state_update` | `false` | When `true`, joins `state/update` and `state/full` into one topic, `<base_topic>/state` — see [2.2](#22-single-topic-mode) | live — session restart |
+| `mqtt.ssl` | `false` | Enables TLS; also gates the NTP sync step | live — session restart |
+| `mqtt.ssl_params` | `{}` | Passed through to `mqtt_as`; `server_hostname` is filled in from `mqtt.server` if not already set | live — session restart |
+| `mqtt.ntp_host` | `pool.ntp.org` | NTP server used only when `mqtt.ssl` is true | live — session restart |
 
 `_build_client` maps these onto the `mqtt_as` client config, plus a few
 values not stored in `config.json`: `client_id` (from `state.device_id`,
@@ -141,19 +162,50 @@ and `will` (the last-will topic/payload described in
 
 ## 2. Exposed functions
 
-`MqttChannel` (`src/channels/mqtt.py`) implements the standard
-[`Channel`](index.md) interface plus the coroutines that do the actual work:
+`src/channels/mqtt.py` holds two classes: `MqttTopics`, a small value object
+that derives the topic strings from `base_topic` + single-topic mode, and
+`MqttChannel`, which implements the standard [`Channel`](index.md) interface.
+The channel's methods are grouped into labelled sections (marker comments in
+the source) that mirror the workflow.
 
-| Function | Type | What it does |
+**`MqttTopics`** — constructed from the current `base_topic` and the
+single-topic flag; centralises the `/state` vs `/state/update` branching that
+would otherwise be repeated per topic:
+
+| Member | What it is |
+|---|---|
+| `base` | The configured `base_topic` prefix |
+| `incoming_updates` | Topic subscribed to for incoming state patches (`<base>/state/update`, or `<base>/state` in single-topic mode) |
+| `update_events` | Topic full-state events are published to (`<base>/state/full`, or `<base>/state` in single-topic mode) |
+| `online_status` | The online/last-will topic (`<base>/state/online`) |
+
+**`MqttChannel`** — `start`/`stop` at the top, everything else below in
+sections:
+
+| Function | Section | What it does |
 |---|---|---|
-| `start()` | `Channel` interface | Runs the workflow in [1.2](#12-basic-workflow); the device's single long-lived entry point for this channel |
-| `stop()` | `Channel` interface | Cancels the background tasks and closes the client |
-| `_build_client()` | internal | Builds the `mqtt_as` config dict and `MQTTClient` instance from `state` |
-| `_sync_time()` | internal | One-shot NTP sync, only called when `mqtt.ssl` is true |
-| `_handle_up()` | background task | Re-subscribes and re-announces online status after every connect/reconnect |
-| `_handle_messages()` | background task | Parses incoming JSON, filters it through the allow-list, applies it to `state` |
-| `_filter_set_patch(patch)` | internal | Implements the allow-list in [3.1.1](#311-allow-list-for-the-update-topic) |
-| `_publish_state()` | background task | Publishes the retained full-state payload whenever `state` changes |
+| `start()` | Channel lifecycle | Loops over sessions per [1.2](#12-basic-workflow); the device's single long-lived entry point for this channel |
+| `stop()` | Channel lifecycle | Ends the current session: cancels the background tasks, publishes `"offline"`, closes the client |
+| `_session()` | Session state machine | Five-step story: wait-if-disabled, initialize, connect, start tasks, wait for restart — each step below polices itself and returns early if the session should end |
+| `_wait_if_disabled()` | Session state machine | If `_disabled_reason()` is set, logs it and waits for a restart; returns `True` when it handled a disabled state |
+| `_initialize_session()` | Session state machine | Waits for Wi-Fi, loads topic config, runs the NTP sync when TLS is on, builds the client; returns `False` if the session died mid-setup |
+| `_connect_with_retries()` | Session state machine | `client.connect()` retry loop; returns `True` once connected, `False` if a restart interrupts it |
+| `_start_session_tasks()` | Session state machine | Spawns the three background tasks |
+| `_teardown()` | Session state machine | Cancels the session's tasks, publishes `"offline"` (retained), closes the client |
+| `_on_change(patch)` | Restart & publish signalling | `StateManager` subscriber; a patch touching `mqtt`/`wifi` calls `_request_session_restart`, anything else `_request_state_publish` |
+| `_request_session_restart()` / `_session_restart_requested()` / `_clear_session_restart_request()` / `_wait_for_session_restart()` | Restart & publish signalling | Intention-named wrappers around the session-restart event — firing, checking, clearing, and awaiting it |
+| `_request_state_publish()` | Restart & publish signalling | Fires the event `_publish_state` waits on |
+| `_session_alive()` | Restart & publish signalling | `True` while the channel runs and no session restart is pending; guards every wait/retry loop |
+| `_sleep_unless_session_restarts(ms)` | Restart & publish signalling | Sliced sleep that returns early when a session restart is requested |
+| `_disabled_reason()` | Enablement | Returns why the channel can't run (`mqtt.enabled` false, no server, Wi-Fi disabled) or `None` when it can |
+| `_wait_for_wifi_connected()` | Connection setup | Polls `runtime.wifi.connected` until up (or a restart intervenes) |
+| `_load_topic_config()` | Connection setup | Reads `base_topic`/single-topic mode into a fresh `MqttTopics` |
+| `_sync_time_with_retries()` / `_sync_time()` | Connection setup | NTP clock sync (needed for TLS); the retry wrapper plus the one-shot sync |
+| `_build_client()` | Connection setup | Builds the `mqtt_as` config dict and `MQTTClient` instance from `state` |
+| `_handle_up()` | Background tasks | Re-subscribes and re-announces online status after every connect/reconnect |
+| `_handle_messages()` | Background tasks | Parses incoming JSON, filters it through the allow-list, applies it to `state` |
+| `_filter_set_patch(patch)` | Background tasks | Implements the allow-list in [3.1.1](#311-allow-list-for-the-update-topic) |
+| `_publish_state()` | Background tasks | Publishes the retained full-state payload whenever `state` changes |
 
 None of these are meant to be called from outside the channel — other code
 only ever interacts with MQTT indirectly, by changing shared state (which
@@ -291,7 +343,11 @@ connect time (`will=(...,"offline", True, 0)` in `_build_client`), so the
 broker publishes `"offline"` (retained) automatically if the device
 disconnects uncleanly — no code on the device runs to produce that message.
 On a clean connect (and every reconnect), `_handle_up` explicitly publishes
-`"online"` (retained) over the same topic.
+`"online"` (retained) over the same topic. On a clean shutdown or a
+config-triggered session restart ([1.2.1](#121-config-changes-at-runtime)),
+the will doesn't fire, so `_teardown` publishes `"offline"` explicitly
+before closing — important when `base_topic` changes, as nothing would ever
+update the old topic again.
 
 ```
 mosquitto_sub -h <broker> -t <base_topic>/state/online -v

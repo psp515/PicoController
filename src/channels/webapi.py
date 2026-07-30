@@ -14,8 +14,26 @@ class WebApiChannel(Channel):
 
     def __init__(self, state, logger):
         super().__init__(state, logger)
+        self._running = False
         self._app = Microdot()
+        self._config_changed = asyncio.Event()
         self._routes()
+
+    def _enabled(self):
+        return self.state.get("webapi", "enabled", default=True)
+
+    def _on_change(self, patch):
+        self._shutdown_server_if_webapi_disabled(patch)
+
+    def _shutdown_server_if_webapi_disabled(self, patch):
+        if "webapi" not in patch:
+            return
+        self._config_changed.set()
+        if not self._enabled():
+            self._app.shutdown()
+
+    async def _wait_for_webapi_config_change(self):
+        await self._config_changed.wait()
 
     def _routes(self):
         app = self._app
@@ -44,11 +62,24 @@ class WebApiChannel(Channel):
             return state.info()
 
     async def start(self):
-        while not self.state.get("runtime", "wifi", "connected"):
-            await asyncio.sleep_ms(WIFI_POLL_MS)
-        self.logger.info("webapi", "listening on port {0}", PORT)
-        await self._app.start_server(port=PORT)
+        self._running = True
+        self.state.subscribe(self._on_change)
+        while self._running:
+            self._config_changed.clear()
+            if not self._enabled():
+                self.logger.info("webapi", "disabled, waiting for config change")
+                await self._wait_for_webapi_config_change()
+                continue
+            while self._running and self._enabled() and not self.state.get("runtime", "wifi", "connected"):
+                await asyncio.sleep_ms(WIFI_POLL_MS)
+            if not self._running or not self._enabled():
+                continue
+            self.logger.info("webapi", "listening on port {0}", PORT)
+            await self._app.start_server(port=PORT)
+            self.logger.info("webapi", "server stopped")
 
     async def stop(self):
+        self._running = False
+        self._config_changed.set()
         self._app.shutdown()
         self.logger.info("webapi", "stopped")

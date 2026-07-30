@@ -78,17 +78,19 @@ device only ever does one of them per press.
 Read from the `button` section of `config.json` (defaults in
 `src/defaults.py`):
 
-| Config key | Default | Used for |
-|---|---|---|
-| `button.pin` | `3` | GPIO pin the button is wired to (active low, internal pull-up) |
+| Config key | Default | Used for | Applies |
+|---|---|---|---|
+| `button.pin` | `3` | GPIO pin the button is wired to (active low, internal pull-up) | reboot required |
+| `button.enabled` | `true` | `false` makes the channel ignore the button entirely — the loop just sleeps (`DISABLED_POLL_MS`) instead of polling the pin | live — picked up within one `DISABLED_POLL_MS` (1 s) |
 
 The press-timing thresholds (`POLL_MS`, `STABLE_POLLS`, `LONG_PRESS_MS`,
 `ABORT_MS`) are module constants in `src/channels/button.py`, not config —
 change them there and re-flash if the physical button needs different
 timing. To move the button to a different pin, set `button.pin` in
-`config.json` (or `config.dev.json`) before boot; like `wifi.ssid`, it's not
-exposed through the Web API or MQTT allow-lists, so it can't be changed
-while the device is running.
+`config.json` (or `config.dev.json`) and reboot — the pin is bound once at
+startup. Deliberate: moving a button means rewiring hardware anyway, so a
+reboot costs nothing, and a live pin swap would only add teardown
+complexity. The same applies to `ir.pin` and `leds.pin`.
 
 ## 2. Exposed functions
 

@@ -111,6 +111,13 @@ To configure it upfront instead, create `config.json` with the same shape as
 
 Copy that `config.json` onto the device alongside `main.py`/`src`/`lib`.
 
+`wifi.*` and `mqtt.*` can also be changed later at runtime via the Web API
+(the channels reconnect on the spot), but the pin assignments (`leds.pin`,
+`button.pin`, `ir.pin`), `watchdog.enabled`, and `leds.on_after_boot` are
+only read at boot — changing those means editing the config and rebooting.
+See the per-key **Applies** column in the
+[Development guide](development.md#top-level-keys).
+
 All runtime state lives in the same file: mode, brightness, speed, and on/off
 state are merged into it and autosaved (debounced, atomic write) whenever
 they change, so the device resumes where it left off after a power cycle. See

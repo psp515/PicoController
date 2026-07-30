@@ -15,7 +15,8 @@ class Renderer:
         self.logger = logger
         self.count = state["leds"]["count"]
         pin = state.get("leds", "pin", default=0)
-        self.np = neopixel.NeoPixel(machine.Pin(pin), self.count)
+        self._pin = machine.Pin(pin)
+        self.np = neopixel.NeoPixel(self._pin, self.count)
         self._reload = True
         state.subscribe(self._on_change)
         self.logger.info("renderer", "leds count {0} pin {1}", self.count, pin)
@@ -24,8 +25,7 @@ class Renderer:
         self._reload = True
 
     def _resize(self, count):
-        pin = self.state.get("leds", "pin", default=0)
-        self.np = neopixel.NeoPixel(machine.Pin(pin), count)
+        self.np = neopixel.NeoPixel(self._pin, count)
         self.count = count
         self.logger.info("renderer", "leds count changed to {0}", count)
 

@@ -9,6 +9,7 @@ POLL_MS = 20
 STABLE_POLLS = 2
 LONG_PRESS_MS = 1000
 ABORT_MS = 2000
+DISABLED_POLL_MS = 1000
 
 
 class ButtonChannel(Channel):
@@ -19,6 +20,9 @@ class ButtonChannel(Channel):
         self._running = False
         self._pin = Pin(state.get("button", "pin", default=3), Pin.IN, Pin.PULL_UP)
 
+    def _enabled(self):
+        return self.state.get("button", "enabled", default=True)
+
     async def start(self):
         self._running = True
         pin_no = self.state.get("button", "pin", default=3)
@@ -28,6 +32,10 @@ class ButtonChannel(Channel):
         count = 0
         pressed_at = None
         while self._running:
+            if not self._enabled():
+                pressed_at = None
+                await asyncio.sleep_ms(DISABLED_POLL_MS)
+                continue
             raw = self._pin.value()
             if raw != last_raw:
                 count = 0
