@@ -17,6 +17,7 @@ NTP_RETRY_MS = 2000
 NTP_PORT = 123
 NTP_TIMEOUT_S = 2
 NTP_DELTA = 3155673600 if time.gmtime(0)[0] == 2000 else 2208988800
+CERTS_DIR = "certs"
 
 ALLOWED_SET_KEYS = {
     "mode": {"current", "brightness", "speed", "on", "color", "direction"},
@@ -177,6 +178,24 @@ class MqttChannel(Channel):
             return "no server configured"
         if not self.state.get("wifi", "ssid", default=""):
             return "wifi is disabled"
+        if self.state.get("mqtt", "ssl", default=False) and self.state.get(
+            "mqtt", "certificate", "validate", default=False
+        ):
+            return self._certificate_disabled_reason()
+        return None
+
+    def _certificate_disabled_reason(self):
+        name = self.state.get("mqtt", "certificate", "name", default="")
+        if not name:
+            return "certificate name is empty"
+        if "/" in name or "\\" in name:
+            return "certificate name {0} is invalid".format(name)
+        path = CERTS_DIR + "/" + name
+        try:
+            with open(path, "rb"):
+                pass
+        except OSError:
+            return "certificate {0} not readable".format(path)
         return None
 
     # --- Connection setup ---
@@ -238,6 +257,13 @@ class MqttChannel(Channel):
         if ssl_enabled:
             ssl_params = dict(self.state.get("mqtt", "ssl_params", default={}))
             ssl_params.setdefault("server_hostname", server)
+            if self.state.get("mqtt", "certificate", "validate", default=False):
+                import ssl
+
+                name = self.state.get("mqtt", "certificate", "name", default="")
+                with open(CERTS_DIR + "/" + name, "rb") as f:
+                    ssl_params.setdefault("cadata", f.read())
+                ssl_params.setdefault("cert_reqs", ssl.CERT_REQUIRED)
             cfg["ssl_params"] = ssl_params
         return MQTTClient(cfg)
 
