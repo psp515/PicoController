@@ -9,6 +9,7 @@ import machine
 from mqtt_as import MQTTClient, config as mqtt_config
 
 from channels.base import Channel
+from helpers.color import hex_to_rgb, rgb_to_hex
 
 WIFI_POLL_MS = 500
 RETRY_MS = 15000
@@ -306,19 +307,36 @@ class MqttChannel(Channel):
         for key, fields in patch.items():
             if key not in ALLOWED_SET_KEYS or not isinstance(fields, dict):
                 continue
+            if key == "mode":
+                fields = self._resolve_hex_color(fields)
             filtered_fields = {k: v for k, v in fields.items() if k in ALLOWED_SET_KEYS[key]}
             if filtered_fields:
                 allowed[key] = filtered_fields
         return allowed
 
+    def _resolve_hex_color(self, mode_fields):
+        if "hexColor" not in mode_fields:
+            return mode_fields
+        rgb = hex_to_rgb(mode_fields["hexColor"])
+        if rgb is None:
+            self.logger.warning("mqtt", "invalid hexColor {0}, ignoring", mode_fields["hexColor"])
+            return mode_fields
+        mode_fields = dict(mode_fields)
+        mode_fields["color"] = rgb
+        return mode_fields
+
     async def _publish_state(self):
         while self._running:
             await self._state_publish_requested.wait()
             self._state_publish_requested.clear()
+            mode = dict(self.state.get("mode") or {})
+            color = mode.get("color")
+            if isinstance(color, list) and len(color) == 3:
+                mode["hexColor"] = rgb_to_hex(color)
             payload = json.dumps(
                 {
                     "device": self.state.device_id,
-                    "mode": self.state.get("mode"),
+                    "mode": mode,
                     "leds": {
                         "count": self.state.get("leds", "count"),
                         "segmenting": self.state.get("leds", "segmenting"),

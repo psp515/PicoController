@@ -370,6 +370,15 @@ a whole field; `length` is still floor-clamped to `2` by
 `StateManager.update()` regardless of what's published (see
 [Segmenting](../animations/index.md#segmenting)).
 
+The color is a `hexColor` convenience that lives entirely in this channel, not
+in `StateManager` (which only ever stores `mode.color` as an `[r, g, b]`
+array). On the way in, `_resolve_hex_color` (in `_filter_set_patch`) turns a
+`mode.hexColor` string into `mode.color` via `hex_to_rgb`
+(`src/helpers/color.py`) before allow-list filtering — an invalid string is
+logged and dropped. On the way out, `_publish_state` adds a `mode.hexColor`
+string derived from `mode.color` with `rgb_to_hex`. `hexColor` is never
+persisted and isn't itself on the allow-list.
+
 ### MQTT exposed functions
 
 `src/channels/mqtt.py` holds two classes: `MqttTopics`, a small value object
@@ -411,7 +420,8 @@ that derives the topic strings from `base_topic` + single-topic mode, and
 | `_handle_up()` | Background tasks | Re-subscribes and re-announces online status after every connect/reconnect |
 | `_handle_messages()` | Background tasks | Parses incoming JSON, filters it through the allow-list, applies it to `state` |
 | `_filter_set_patch(patch)` | Background tasks | Implements the allow-list above |
-| `_publish_state()` | Background tasks | Publishes the retained full-state payload whenever `state` changes |
+| `_resolve_hex_color(mode_fields)` | Background tasks | Converts an incoming `mode.hexColor` string into `mode.color` (`hex_to_rgb`) |
+| `_publish_state()` | Background tasks | Publishes the retained full-state payload whenever `state` changes; adds `mode.hexColor` (`rgb_to_hex`) |
 
 ## Adding a new channel
 

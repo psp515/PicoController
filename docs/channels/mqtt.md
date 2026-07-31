@@ -69,6 +69,10 @@ A command sent to `state/update` may only contain these:
 Anything else is ignored. See [Animations](../animations/index.md) for what the
 modes, `color`, `speed`, `direction` and `segmenting` actually do.
 
+As a convenience you can set the color with a `mode.hexColor` string
+(`"#ff781e"`, with or without the `#`) instead of the `color` array — MQTT
+converts it to `color` for you. The published state reports both.
+
 ## Examples
 
 These use `mosquitto_pub`/`mosquitto_sub`, but any MQTT client works the same
@@ -88,11 +92,12 @@ mosquitto_pub -h <broker> -t <base_topic>/state/update \
   -m '{"leds": {"count": 60}}'
 ```
 
-Set the color and play the animation from the far end of the strip:
+Set the color (here as a `hexColor` string) and play the animation from the far
+end of the strip:
 
 ```
 mosquitto_pub -h <broker> -t <base_topic>/state/update \
-  -m '{"mode": {"direction": "backward", "color": [255, 120, 30]}}'
+  -m '{"mode": {"direction": "backward", "hexColor": "#ff781e"}}'
 ```
 
 Turn on segmenting with a 5-LED repeat:
@@ -109,7 +114,7 @@ mosquitto_sub -h <broker> -t <base_topic>/state/full -v
 ```
 
 ```json
-{"device": "e6614c311b331b35", "mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true, "color": [255, 120, 30], "direction": "forward"}, "leds": {"count": 144, "segmenting": {"enabled": true, "length": 5}}}
+{"device": "e6614c311b331b35", "mode": {"current": "rainbow", "brightness": 80, "speed": 10, "on": true, "color": [255, 120, 30], "hexColor": "#ff781e", "direction": "forward"}, "leds": {"count": 144, "segmenting": {"enabled": true, "length": 5}}}
 ```
 
 Each state message carries a `"device"` id; you don't need to send it.

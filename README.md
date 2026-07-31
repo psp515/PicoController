@@ -39,31 +39,30 @@
 ## About the project
 
 PicoController turns a Raspberry Pi Pico W and a WS2812B ARGB LED strip into a
-smart light you can control however suits you in the moment — a remote, the
-button on the enclosure, your phone, or a home automation system.
+smart light you can control however suits you in the moment — the button on the
+enclosure or a home automation system.
 
-- **Turn the LEDs on or off**, and switch between lighting modes (Static color, rainbow etc.)
-- **Adjust brightness and speed**, shared across whichever mode is active.
+- **Turn the LEDs on or off**, and switch between lighting modes (static color, rainbow, running trail, etc.)
+- **Adjust brightness, speed, color and direction**, shared across whichever mode is active.
+- **Split the strip into repeating segments** for compatible modes.
 - **Remembers your settings.** Mode, brightness, speed, and on/off state all
   survive a power cycle — the strip comes back exactly as you left it.
 - **Announces when it goes offline**, if you're watching it over MQTT (a
   retained "last will" message)
 
-Pick whichever control method's convenient — they all work at the same time and stay in sync:
+Pick whichever control method's convenient — they both work at the same time and stay in sync:
 
-- **IR remote** — any standard NEC-protocol remote, pointed at the receiver
 - **The button** on the enclosure cover — short press cycles modes, a longer press toggles the strip on/off
-- **MQTT** — for automation systems
-- **A web/HTTP API** — for a phone browser, a script, or your own UI; get or set the full state as JSON
+- **MQTT** — for Home Assistant, Node-RED, or any other automation system
 
 ## Documentation
 
-Full docs live at **[psp515.github.io/PicoController](https://psp515.github.io/PicoController/)**:
+Full docs live at **[psp515.github.io/PicoController](https://psp515.github.io/PicoController/)**. They're split into a plain-language user track and a developer (Contributing) track:
 
 - [Manual setup](https://psp515.github.io/PicoController/setup.html) — wiring, flashing MicroPython, copying the project on, and configuring it
-- [Development guide](https://psp515.github.io/PicoController/development.html) — architecture, dev environment setup, and the config file
-- [Channels](https://psp515.github.io/PicoController/channels/) — the input abstraction (IR, button, MQTT, Web API) and how to add a new one
-- [Animations](https://psp515.github.io/PicoController/animations/) — the lighting-mode abstraction and how to add a new one
+- [Channels](https://psp515.github.io/PicoController/channels/) — the ways to control it (button and MQTT)
+- [Animations](https://psp515.github.io/PicoController/animations/) — the lighting modes and their shared controls
+- [Contributing](https://psp515.github.io/PicoController/contributing/) — architecture, dev-environment setup, the config file, and how to add a new channel or mode
 
 ## Contributing
 
@@ -73,7 +72,7 @@ channel you'd like to add:
 
 - ⭐ **Star** the repo if you find it useful — it helps others find it too.
 - 🐛 Open an [issue](https://github.com/psp515/PicoController/issues) for bugs or feature requests.
-- 🔀 Fork it and send a pull request — the [Development guide](https://psp515.github.io/PicoController/development.html) covers how the pieces fit together and how to add a new channel or mode without touching the core loop.
+- 🔀 Fork it and send a pull request — the [Contributing docs](https://psp515.github.io/PicoController/contributing/) cover how the pieces fit together and how to add a new channel or mode without touching the core loop.
 
 ## License
 

@@ -65,6 +65,37 @@ def test_filter_set_patch_keeps_segmenting():
     assert allowed == {"leds": {"count": 100, "segmenting": {"enabled": True, "length": 5}}}
 
 
+def test_filter_set_patch_converts_hex_color_to_rgb():
+    channel, _ = make_channel({})
+    patch = {"mode": {"hexColor": "#ff781e", "on": True}}
+
+    allowed = channel._filter_set_patch(patch)
+
+    assert allowed == {"mode": {"color": [255, 120, 30], "on": True}}
+
+
+def test_filter_set_patch_drops_invalid_hex_color():
+    channel, _ = make_channel({})
+    patch = {"mode": {"hexColor": "nope", "on": True}}
+
+    allowed = channel._filter_set_patch(patch)
+
+    assert allowed == {"mode": {"on": True}}
+
+
+def test_handle_messages_applies_hex_color():
+    channel, state = make_channel({"mode": {"current": "static", "color": [1, 2, 3]}})
+    channel._client = FakeClient(
+        queue_items=[
+            (b"controller/led/1/state/update", json.dumps({"mode": {"hexColor": "#ff781e"}}).encode(), False),
+        ]
+    )
+
+    asyncio.run(channel._handle_messages())
+
+    assert state.mode.color == [255, 120, 30]
+
+
 def test_handle_messages_applies_allowed_patch():
     channel, state = make_channel({"mode": {"current": "static", "on": True}})
     channel._client = FakeClient(
@@ -197,6 +228,38 @@ def test_publish_state_sends_full_mode_and_leds_on_change():
     assert data["mode"] == {"current": "static", "on": True}
     assert data["leds"] == {"count": 10, "segmenting": {"enabled": False, "length": 5}}
     assert data["device"] == state.device_id
+
+
+def test_publish_state_adds_hex_color_from_rgb():
+    channel, _ = make_channel(
+        {
+            "mode": {"current": "static", "on": True, "color": [255, 120, 30]},
+            "leds": {"count": 10, "pin": 0, "segmenting": {"enabled": False, "length": 5}},
+        }
+    )
+    channel._topics = MqttTopics("controller/led/1", False)
+    channel._running = True
+    client = FakeClient()
+    channel._client = client
+
+    async def run_briefly():
+        channel._state_publish_requested.set()
+        task = asyncio.create_task(channel._publish_state())
+        await asyncio.sleep(0.01)
+        channel._running = False
+        channel._state_publish_requested.set()
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    asyncio.run(run_briefly())
+
+    _, payload, _, _ = client.published[0]
+    data = json.loads(payload)
+    assert data["mode"]["color"] == [255, 120, 30]
+    assert data["mode"]["hexColor"] == "#ff781e"
 
 
 def test_on_change_mqtt_patch_triggers_restart_not_publish():
