@@ -20,19 +20,31 @@ MicroPython.
 
 ## 2. Wire the hardware
 
+The simplest working setup is just the Pico W and a WS2812B strip — the button
+is optional. Here's that minimal example:
+
+![Minimal wiring: Raspberry Pi Pico W and a WS2812B strip](assets/images/schema.png)
+
+{: .note }
+> In this diagram the strip's data line goes to **GP15** and the button to
+> **GP14**. To use it as-is, set `leds.pin: 15` and `button.pin: 14` in
+> `config.json`; otherwise wire to the defaults in the table below (`GP0` /
+> `GP3`).
+
+{: .note }
+> A 3D-printable enclosure for this build is available on Thingiverse:
+> [thingiverse.com/thing:6678379](https://www.thingiverse.com/thing:6678379).
+
 ### Pinout (defaults, configurable in `config.json`)
 
-| Function             | Pico W pin | Config key    | Notes                                   |
+| Function             | Default Pico W pin | Config key    | Notes                                   |
 |-----------------------|-----------|---------------|------------------------------------------|
 | WS2812B data          | `GP0`     | `leds.pin`    | Required                                  |
-| IR receiver (NEC)     | `GP2`     | `ir.pin`      | Optional, interrupt-driven                |
 | Push button (cover)   | `GP3`     | `button.pin`  | Optional, active-low, internal pull-up    |
 
 ### WS2812B LED strip
 
-- The strip is **5V logic and 5V power** (`WS2812B`, not the 12V `WS2811`
-  variant — see the [future directions in CLAUDE.md](../.claude/CLAUDE.md) if
-  you're bringing up 12V support instead).
+- The strip is **5V logic and 5V power** (`WS2812B`).
 - The Pico W's GPIO runs at **3.3V**. WS2812B data lines are commonly driven
   directly from a 3.3V GPIO and work reliably for short runs, but it's outside
   the chip's guaranteed spec — for longer strips or if you see flicker/glitches
@@ -51,15 +63,6 @@ MicroPython.
   WS2812B best practices — both reduce power-on glitches and ringing on the
   data line.
 
-### IR receiver (optional)
-
-- Any standard 3-pin NEC-compatible IR receiver module (e.g. TSOP38238/VS1838B
-  style: `OUT` / `VCC` / `GND`) works.
-- `OUT` → `GP2`, `VCC` → 3V3, `GND` → ground.
-- The pin is read via a hardware interrupt: the ISR only records edge
-  timestamps, decoding happens later in a `uasyncio` task — see the IR receiver
-  note in [CLAUDE.md](../.claude/CLAUDE.md) if you're touching that code.
-
 ### Push button (optional)
 
 - A simple momentary push button wired between `GP3` and ground.
@@ -77,7 +80,7 @@ Copy these onto the device's filesystem, preserving the folder layout:
 
 - `main.py`
 - `src/` (the application code)
-- `lib/` (`mqtt_as.py`, `micropython_ir`, `microdot`)
+- `lib/` (`mqtt_as.py`)
 
 Use whichever tool you're comfortable with — `mpremote`, `rshell`, or Thonny's
 file browser all work:
@@ -89,7 +92,7 @@ mpremote cp main.py :main.py
 ```
 
 Do **not** copy `tests/`, `helpers/`, or `docs/` — those are host-side only and
-never run on the device.
+never run on the device, create `certs` directory if you want to sercure mqtt ssl.
 
 ## 4. Provide a config file
 
@@ -104,16 +107,16 @@ To configure it upfront instead, create `config.json` with the same shape as
 - `mqtt.server` / `mqtt.port` / `mqtt.user` / `mqtt.password` / `mqtt.base_topic`
   (leave `mqtt.server` empty to disable MQTT entirely)
 - `leds.count` / `leds.pin` to match your strip
-- `button.pin` / `ir.pin` if wired to non-default GPIOs
+- `button.pin` if wired to a non-default GPIO
 - `watchdog.enabled: true` for a deployed device — arms the hardware watchdog
   so the board auto-reboots if the firmware ever hangs (leave it `false` while
   developing; see the [Development guide](development.md#watchdog))
 
 Copy that `config.json` onto the device alongside `main.py`/`src`/`lib`.
 
-`wifi.*` and `mqtt.*` can also be changed later at runtime via the Web API
-(the channels reconnect on the spot), but the pin assignments (`leds.pin`,
-`button.pin`, `ir.pin`), `watchdog.enabled`, and `leds.on_after_boot` are
+`wifi.*` and `mqtt.*` are applied at runtime (the channels reconnect on the
+spot when the config changes), but the pin assignments (`leds.pin`,
+`button.pin`), `watchdog.enabled`, and `leds.on_after_boot` are
 only read at boot — changing those means editing the config and rebooting.
 See the per-key **Applies** column in the
 [Development guide](development.md#top-level-keys).
@@ -128,7 +131,7 @@ local development, so real credentials never end up in the repo).
 ## 5. First boot
 
 Power the board. Startup order is: load config → start renderer + autosave
-task → start all channels concurrently (Wi-Fi, button, MQTT, Web API, IR).
+task → start all channels concurrently (Wi-Fi, button, MQTT).
 Nothing blocks on Wi-Fi/MQTT connecting — the LED strip lights up immediately
 using the persisted mode.
 
@@ -137,11 +140,10 @@ console appender — watch them over the USB serial REPL.
 
 ## 6. Talking to the device
 
-Both the Web API and MQTT wait until Wi-Fi is connected before doing
-anything — check `runtime.wifi.connected` if a request or message doesn't
-seem to land. For endpoints/topics and payload examples, see:
+MQTT waits until Wi-Fi is connected before doing anything — check
+`runtime.wifi.connected` if a message doesn't seem to land. For topics and
+payload examples, see:
 
-- [Web API](channels/webapi.md) — JSON over HTTP, `GET`/`POST /json/state`, `GET /info`
 - [MQTT](channels/mqtt.md) — topics, retained state, last will
 
 ## Developing or extending it

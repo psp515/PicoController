@@ -93,11 +93,12 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   "disabled" state is an empty `ssid`; a disabled wifi also disables mqtt
   (mqtt requires non-empty `wifi.ssid`).
 - Every config key must be documented in the docs config tables — the
-  channel page's "Used configuration" table and/or the "Top-level keys"
-  table in `docs/development.md` — with its default, what it's used for,
-  and an **Applies** column stating whether a change takes effect live or
-  requires a reboot. Adding or changing a config key means updating those
-  tables in the same change.
+  user channel page's "Settings" table and/or the "Top-level keys"
+  table in `docs/development.md` — with its default and what it's used for.
+  The "Top-level keys" table (developer reference) also carries an
+  **Applies** column stating whether a change takes effect live or requires
+  a reboot. Adding or changing a config key means updating those tables in
+  the same change.
 - Writes: temp file + `os.rename()` (atomic, protects against corruption).
 - Debounce/batch saves — never write flash per frame or per slider tick.
 - Missing or corrupt file → fall back to built-in defaults and recreate the file.
@@ -210,8 +211,16 @@ not as a follow-up:
 - Update the relevant section of this file (`.claude/CLAUDE.md`) if the
   change affects a requirement, architecture rule, or convention stated
   here.
-- Update the relevant page(s) under `docs/` (`development.md`,
-  `animations/index.md`, `channels/*.md`, `index.md`) — see
+- The docs are split into two tracks and changes must respect it:
+  **user-facing** pages (`index.md`, `setup.md`, `channels/*.md`,
+  `animations/index.md`) explain use, configuration and behavior in plain
+  language, with **no implementation details** (no internal method names,
+  constants, or code walkthroughs); **developer** pages under Contributing
+  (`development.md`, `contributing/index.md`, `contributing/channels.md`,
+  `contributing/animations.md`) hold the architecture and all internals.
+  Put user-visible behavior on the user page, implementation on the
+  Contributing page, and cross-link between them.
+- Update the relevant page(s) under `docs/` — see
   [Documentation (GitHub Pages)](#documentation-github-pages) above for how
   navigation/front matter works when adding a new page.
 - If a change only affects internal implementation with no user- or
