@@ -10,9 +10,7 @@ import asyncio
 from machine import WDT, Pin
 
 from channels.button import ButtonChannel
-from channels.ir import IrChannel
 from channels.mqtt import MqttChannel
-from channels.webapi import WebApiChannel
 from channels.wifi import WifiChannel
 from logger.console import ConsoleAppender
 from logger.logger import Logger
@@ -48,13 +46,13 @@ async def main():
 
     if not state.get("leds", "on_after_boot", default=True):
         state.data()["mode"]["on"] = False
+    else:
+        state.data()["mode"]["on"] = True
 
     channels = [
         WifiChannel(state, logger),
         ButtonChannel(state, logger),
         MqttChannel(state, logger),
-        WebApiChannel(state, logger),
-        IrChannel(state, logger),
     ]
 
     asyncio.create_task(storage.autosave(state, logger))

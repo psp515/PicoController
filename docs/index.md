@@ -7,8 +7,8 @@ nav_order: 1
 # Pico Controller
 
 PicoController turns a Raspberry Pi Pico W and a WS2812B ARGB LED strip into a
-smart light you can control however suits you in the moment — a remote, the
-button on the enclosure, your phone, or a home automation system.
+smart light you can control however suits you in the moment — the button on the
+enclosure or a home automation system.
 
 ## What it can do
 
@@ -25,23 +25,24 @@ button on the enclosure, your phone, or a home automation system.
 
 ## How you can control it
 
-Pick whichever's convenient — they all work at the same time and stay in sync:
+Pick whichever's convenient — they both work at the same time and stay in sync:
 
-- **IR remote** — any standard NEC-protocol remote, pointed at the receiver.
 - **The button** on the enclosure cover — short press cycles modes, a longer
   press toggles the strip on/off.
-- **MQTT** — for Home Assistant, Node-RED, Senswave or any other automation system.
-- **A web/HTTP API** — for a phone browser, a script, or your own UI; get or
-  set the full state as JSON.
+- **MQTT** — for Home Assistant, Node-RED, [Senswave](https://senswave.net/) or any other automation system.
 
 ## Getting started
 
 - [Manual setup](setup.md) — wiring, flashing MicroPython, copying the
   project on, and configuring it
 
+## Using it
+
+- [Channels](channels/index.md) — the ways to control it (button and MQTT)
+- [Animations](animations/index.md) — the lighting modes and their controls
+
 ## Contributing / extending it
 
-- [Development guide](development.md) — how it works, the architecture, how
-  to set up a dev environment, and how the config file works
-- [Channels](channels/index.md) — add a new way to control the device
-- [Animations](animations/index.md) — add a new lighting mode
+- [Contributing](contributing/index.md) — the developer docs: how it works
+  internally, the architecture, setting up a dev environment, and how to add a
+  new control method or lighting mode

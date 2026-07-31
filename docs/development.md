@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Development
-nav_order: 3
+parent: Contributing
+nav_order: 1
 ---
 
 # Development guide
@@ -15,22 +16,22 @@ This page is for anyone changing the code:
 ## How it works
 
 ```
-IR / Button / MQTT / Web API  ──►  StateManager  ──►  Renderer  ──►  WS2812B strip
-        (channels)                 (shared state)      (animations)
-                                        │
-                                        ▼
-                                   config.json
-                              (debounced autosave)
+Button / MQTT  ──►  StateManager  ──►  Renderer  ──►  WS2812B strip
+  (channels)        (shared state)      (animations)
+                         │
+                         ▼
+                    config.json
+               (debounced autosave)
 ```
 
 Everything runs in a single `uasyncio` event loop on one core. At boot,
 `main.py` loads the config, then starts the renderer, the autosave task, and
-every channel (Wi-Fi, button, MQTT, Web API, IR) concurrently as independent
+every channel (Wi-Fi, button, MQTT) concurrently as independent
 tasks — nothing blocks waiting on anything else, so the strip lights up
 immediately using whatever was last saved.
 
 Every input path (a "channel") is just a translator: it turns "the user did
-something" — a button press, an IR code, an MQTT message, an HTTP request —
+something" — a button press, an MQTT message —
 into a small JSON patch applied to one shared application state. The renderer
 watches that same state and redraws the strip whenever it changes. No input
 path ever touches the LED strip directly, and the renderer never knows or
@@ -52,29 +53,30 @@ cares which channel triggered a change.
   change. `update()` only validates the *patch* passed to it — see
   `revalidate()` below for the boot-time gap that leaves.
 - **Channels** (`src/channels/`) are the only things allowed to call
-  `state.update(...)`. See [Channels](channels/index.md) for the interface and
-  how to add a new one.
+  `state.update(...)`. See [Channel internals](contributing/channels.md) for
+  the interface and how to add a new one.
 - **Renderer** (`src/renderer.py`) watches the state for changes, instantiates
   the active animation from a mode registry, and renders it into a
   preallocated NeoPixel buffer every frame, applying global brightness
-  scaling and (optionally) [segmenting](animations/index.md#segmenting). It
-  also re-checks `leds.count` every frame and reallocates the NeoPixel buffer
+  scaling and (optionally) [segmenting](contributing/animations.md#segmenting).
+  It also re-checks `leds.count` every frame and reallocates the NeoPixel buffer
   on the fly if it changed — so the LED count is one more thing you can
-  change at runtime without a reboot. See [Animations](animations/index.md)
-  for the interface and how to add a new mode.
+  change at runtime without a reboot. See
+  [Animation internals](contributing/animations.md) for the interface and how
+  to add a new mode.
 - **Storage** (`src/storage.py`) loads the config file on boot, merging over
   built-in defaults, and autosaves changes back with a debounce + atomic
   `os.rename()` write. Details below.
 - **Logger** (`src/logger/`) is config-driven and disabled by default;
   application code never calls `print()` — see the `Logger` class and its
-  appenders (`ConsoleAppender`, with a file appender planned).
+  appenders (`ConsoleAppender`).
 
 ## Setting up a development environment
 
 The `src/` code is written so the pure-logic parts (`state.py`, `storage.py`,
 `defaults.py`, and channels that don't touch hardware) also import and run
 unchanged on regular CPython — that's what the test suite exercises. Code
-that touches hardware (`machine`, `network`, `neopixel`, `microdot`) only runs
+that touches hardware (`machine`, `network`, `neopixel`) only runs
 on-device; `tests/conftest.py` stubs the handful of MicroPython-only modules
 and functions (`mqtt_as`, `machine` incl. `Pin`, `neopixel`,
 `time.ticks_ms`/`ticks_diff`, `asyncio.sleep_ms`) needed to import
@@ -99,8 +101,6 @@ as described in [Manual setup](setup.md) — there's no build step in between.
 
 - `uasyncio` — the only concurrency model; no `_thread`, no second core.
 - `mqtt_as` (Peter Hinch, micropython-mqtt) — async, resilient MQTT client.
-- `micropython_ir` (Peter Hinch) — NEC IR decoding.
-- `microdot` — the async HTTP server behind the Web API.
 
 ### MicroPython constraints to keep in mind
 
@@ -171,9 +171,8 @@ state.revalidate()
 ### Top-level keys
 
 The **Applies** column states how a change to the key takes effect: `live`
-means it's picked up at runtime (a Web API patch is enough), `reboot` means
-it's only read at startup, `boot only` means the key inherently only ever
-matters during boot.
+means it's picked up at runtime, `reboot` means it's only read at startup,
+`boot only` means the key inherently only ever matters during boot.
 
 | Key | Fields | Applies | Notes |
 |---|---|---|---|
@@ -181,11 +180,9 @@ matters during boot.
 | `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count`/`segmenting` live; `pin` reboot; `on_after_boot` boot only | `count` is read fresh every frame by the `Renderer`, which reallocates the NeoPixel buffer if it changed — so it's changeable at runtime, no reboot needed (floor of 1, clamped in `StateManager`); `pin` is bound once at startup; `on_after_boot` controls whether the strip lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
 | `mode` | `current`, `brightness`, `speed`, `on`, `color`, `direction` | live | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), on/off, global `color: [r, g, b]` (each 0-255, clamped) used by color-driven modes, and `direction` (`"forward"`/`"backward"`) — `"backward"` mirrors the rendered strip so animations run from the far end; applies to every mode except `off` — see [Animations](animations/index.md#direction) |
 | `modes` | one entry per mode name | live | Each mode's own params, e.g. `runner: {"length": n}`, `off: {"fade_ms": n}` — see [Animations](animations/index.md) |
-| `wifi` | `ssid`, `password` | live — channel reconnects | Empty `ssid` disables Wi-Fi — and with it MQTT, which requires Wi-Fi; changing credentials makes the channel reconnect, with automatic revert to the last working credentials if the new ones never connect — see [Wifi channel](channels/wifi.md#12-changing-credentials-at-runtime) |
-| `webapi` | `enabled` | live | `false` shuts the HTTP server down; `true` starts it again (once Wi-Fi is connected) |
-| `mqtt` | `enabled`, `server`, `port`, `user`, `password`, `base_topic`, `use_single_topic_for_state_update`, `ssl`, `ssl_params`, `certificate` (`validate`, `name`), `ntp_host` | live — session restarts | Disabled when `enabled` is `false`, `server` is empty, Wi-Fi is disabled, or (when `ssl` and `certificate.validate` are both true) the cert at `certs/<certificate.name>` isn't readable — fail-closed, no silent fallback to unverified TLS; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting; any change tears the session down (publishing `"offline"` on the old topic) and reconnects with the new config — see [MQTT channel](channels/mqtt.md#14-certificate-validation) |
+| `wifi` | `ssid`, `password` | live — channel reconnects | Empty `ssid` disables Wi-Fi — and with it MQTT, which requires Wi-Fi; changing credentials makes the channel reconnect, with automatic revert to the last working credentials if the new ones never connect — see [Channel internals](contributing/channels.md#changing-credentials-at-runtime) |
+| `mqtt` | `enabled`, `server`, `port`, `user`, `password`, `base_topic`, `use_single_topic_for_state_update`, `ssl`, `ssl_params`, `certificate` (`validate`, `name`), `ntp_host` | live — session restarts | Disabled when `enabled` is `false`, `server` is empty, Wi-Fi is disabled, or (when `ssl` and `certificate.validate` are both true) the cert at `certs/<certificate.name>` isn't readable — fail-closed, no silent fallback to unverified TLS; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting; any change tears the session down (publishing `"offline"` on the old topic) and reconnects with the new config — see [Channel internals](contributing/channels.md#certificate-validation) |
 | `button` | `pin`, `enabled` | `pin` reboot; `enabled` live | GPIO for the cover button; `enabled: false` makes the channel ignore presses |
-| `ir` | `pin`, `codes`, `enabled` | `pin` reboot; `codes`/`enabled` live | GPIO for the IR receiver; `codes` maps received NEC codes to arbitrary state patches, looked up fresh on every keypress; `enabled: false` closes the receiver (no IRQs) until re-enabled |
 | `logging` | `enabled`, `level` | live | Disabled by default; `level` is one of `debug`/`info`/`warning`/`error`; both checked on every log call |
 | `watchdog` | `enabled` | reboot | Hardware watchdog (see below); disabled by default, enable on production devices; checked once at startup — the RP2040 watchdog can't be disarmed once running anyway |
 
@@ -219,6 +216,6 @@ Things to keep in mind:
 
 ## Extending the device
 
-- [Channels](channels/index.md) — add a new way to control the device (a
-  new input path)
-- [Animations](animations/index.md) — add a new lighting mode
+- [Channel internals](contributing/channels.md) — add a new way to control the
+  device (a new input path)
+- [Animation internals](contributing/animations.md) — add a new lighting mode
