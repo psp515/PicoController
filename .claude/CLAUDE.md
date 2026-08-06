@@ -65,6 +65,10 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   strip or renderer directly. State Manager class manages channels 
 - Communication channels (MQTT, Web API, IR, button) are abstracted behind a common
   interface so new channels can be added without changing core logic. (`src/channels/`)
+- The Wi-Fi channel is the radio's single owner. No other code drives the
+  interface — mqtt uses `ExternalWifiMQTTClient` (subclass in
+  `src/channels/mqtt.py`) so `mqtt_as` never connects/disconnects Wi-Fi itself,
+  it only waits for the radio to be up.
 - Application should start as quickly as possible and cahnnels should start concurrenctly
 
 ## Selected libraries

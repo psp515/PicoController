@@ -44,6 +44,15 @@ class MqttTopics:
         return self.base + "/state/online"
 
 
+class ExternalWifiMQTTClient(MQTTClient):
+    async def wifi_connect(self, quick=False):
+        while not self._sta_if.isconnected():
+            await asyncio.sleep_ms(WIFI_POLL_MS)
+
+    def close(self):
+        self._close()
+
+
 class MqttChannel(Channel):
     name = "mqtt"
 
@@ -266,7 +275,7 @@ class MqttChannel(Channel):
                     ssl_params.setdefault("cadata", f.read())
                 ssl_params.setdefault("cert_reqs", ssl.CERT_REQUIRED)
             cfg["ssl_params"] = ssl_params
-        return MQTTClient(cfg)
+        return ExternalWifiMQTTClient(cfg)
 
     # --- Background tasks ---
 

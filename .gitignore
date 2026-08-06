@@ -140,3 +140,4 @@ docs/Gemfile.lock
 
 certs/*.der
 certs/*.pem
+.DS_Store

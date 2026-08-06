@@ -205,6 +205,19 @@ project rule of never using the blocking `umqtt.simple`/`umqtt.robust` clients.
 - **Wi-Fi first.** `start()` blocks (via a non-blocking poll loop, not a real
   block) on `runtime.wifi.connected` before doing anything else — MQTT never
   attempts to connect on its own.
+- **Wi-Fi stays with the Wi-Fi channel.** Stock `mqtt_as` manages the radio
+  itself: its `wifi_connect()` re-issues `connect(ssid, password)` on an
+  already-connected interface (forcing a reassociation that can break DNS
+  right before the broker lookup), and its `close()` disconnects and
+  deactivates the whole interface. Both conflict with the
+  [Wi-Fi channel](#wi-fi-channel) being the radio's single owner, so the
+  channel builds an `ExternalWifiMQTTClient` (a small `MQTTClient` subclass in
+  `src/channels/mqtt.py`) instead: `wifi_connect()` only polls
+  `_sta_if.isconnected()` until the radio is up, and `close()` only closes the
+  socket. This also skips `mqtt_as`'s ~6s connect-and-verify Wi-Fi dance on
+  every broker connect attempt. The `ssid`/`wifi_pw` config keys are still
+  populated (the `MQTTClient` constructor requires them) but never used to
+  drive the radio.
 - **`mqtt.enabled` true, `mqtt.server` non-empty, `wifi.ssid` non-empty.** Any
   of them missing is an explicit "disabled" state, not an error — the channel
   logs the reason and waits for a config change.
@@ -273,7 +286,11 @@ incoming MQTT patch can't reconfigure the connection it arrives on.
    dict keys read/written in `_build_client` (`client_id`, `server`, `port`,
    `user`, `password`, `ssid`, `wifi_pw`, `will`, `queue_len`, `ssl`,
    `ssl_params`). If a newer version renames or drops one of these,
-   `_build_client` needs a matching update.
+   `_build_client` needs a matching update. `ExternalWifiMQTTClient` also
+   overrides `wifi_connect()`/`close()` and reaches into the `_sta_if` and
+   `_close` internals — verify those still exist and that the base class still
+   funnels all radio handling through `wifi_connect()`/`close()`, or the
+   Wi-Fi-ownership split breaks silently.
 3. `tests/conftest.py` stubs `mqtt_as` for host-side testing — if you start
    depending on new fields/behavior, make sure that stub still satisfies
    `channels/mqtt.py`'s imports before `pytest` will pass.
