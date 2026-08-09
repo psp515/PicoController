@@ -12,6 +12,7 @@ from machine import WDT, Pin
 
 from channels.button import ButtonChannel
 from channels.mqtt import MqttChannel
+from channels.webapi import WebApiChannel
 from channels.wifi import WifiChannel
 from logger.console import ConsoleAppender
 from logger.logger import Logger
@@ -55,6 +56,7 @@ async def main():
         WifiChannel(state, logger),
         ButtonChannel(state, logger),
         MqttChannel(state, logger),
+        WebApiChannel(state, logger),
     ]
 
     asyncio.create_task(storage.autosave(state, logger))

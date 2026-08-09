@@ -30,11 +30,31 @@ class FakeWlan:
         return ("192.168.1.10", "255.255.255.0", "192.168.1.1", "192.168.1.1")
 
 
+class FakeAp:
+    def __init__(self):
+        self._active = False
+        self.active_calls = []
+        self.configs = []
+
+    def active(self, value=None):
+        if value is None:
+            return self._active
+        self._active = value
+        self.active_calls.append(value)
+
+    def config(self, **kwargs):
+        self.configs.append(kwargs)
+
+    def ifconfig(self):
+        return ("192.168.4.1", "255.255.255.0", "192.168.4.1", "192.168.4.1")
+
+
 def make_channel(data):
     state = StateManager(data)
     logger = Logger(state)
     channel = WifiChannel(state, logger)
     channel._wlan = FakeWlan()
+    channel._ap = FakeAp()
     return channel, state
 
 
@@ -45,6 +65,7 @@ def patch_timings(monkeypatch):
     monkeypatch.setattr(wifi_module, "MONITOR_MS", 5)
     monkeypatch.setattr(wifi_module, "BACKOFF_MIN_MS", 1)
     monkeypatch.setattr(wifi_module, "BACKOFF_MAX_MS", 5)
+    monkeypatch.setattr(wifi_module, "AP_POLL_MS", 5)
 
 
 async def run_channel_while(channel, body):
@@ -106,6 +127,69 @@ def test_reconnects_on_config_change(monkeypatch):
         state.update({"wifi": {"ssid": "new", "password": "npw"}})
         await asyncio.sleep(0.1)
         assert ("new", "npw") in channel._wlan.attempts
+        assert state.get("runtime", "wifi", "connected") is True
+
+    asyncio.run(run_channel_while(channel, body))
+
+
+def test_no_ssid_starts_ap_immediately(monkeypatch):
+    patch_timings(monkeypatch)
+    channel, state = make_channel({"device": {"name": "Pico"}})
+
+    async def body():
+        await asyncio.sleep(0.05)
+        assert state.get("runtime", "wifi", "ap_active") is True
+        assert state.get("runtime", "wifi", "ap_ip") == "192.168.4.1"
+        assert channel._ap.configs[-1]["ssid"] == "Pico-setup"
+
+    asyncio.run(run_channel_while(channel, body))
+
+
+def test_backoff_retries_before_ap_fallback(monkeypatch):
+    patch_timings(monkeypatch)
+    monkeypatch.setattr(wifi_module, "AP_FALLBACK_ATTEMPTS", 2)
+    channel, state = make_channel({"wifi": {"ssid": "home", "password": "wrong"}})
+
+    async def body():
+        await asyncio.sleep(0.15)
+        assert state.get("runtime", "wifi", "ap_active") is True
+        assert len(channel._wlan.attempts) >= 2
+
+    asyncio.run(run_channel_while(channel, body))
+
+
+def test_retries_wifi_after_ap_fallback_window(monkeypatch):
+    patch_timings(monkeypatch)
+    monkeypatch.setattr(wifi_module, "AP_FALLBACK_ATTEMPTS", 1)
+    monkeypatch.setattr(wifi_module, "AP_FALLBACK_MS", 20)
+    channel, state = make_channel({"wifi": {"ssid": "home", "password": "wrong"}})
+
+    async def body():
+        await asyncio.sleep(0.05)
+        assert state.get("runtime", "wifi", "ap_active") is True
+        channel._wlan.good = ("home", "wrong")
+
+        await asyncio.sleep(0.2)
+        assert state.get("runtime", "wifi", "ap_active") is False
+        assert state.get("runtime", "wifi", "connected") is True
+
+    asyncio.run(run_channel_while(channel, body))
+
+
+def test_config_change_interrupts_ap_fallback_wait(monkeypatch):
+    patch_timings(monkeypatch)
+    monkeypatch.setattr(wifi_module, "AP_FALLBACK_ATTEMPTS", 1)
+    monkeypatch.setattr(wifi_module, "AP_FALLBACK_MS", 10_000)
+    channel, state = make_channel({"wifi": {"ssid": "home", "password": "wrong"}})
+
+    async def body():
+        await asyncio.sleep(0.05)
+        assert state.get("runtime", "wifi", "ap_active") is True
+        channel._wlan.good = ("home", "new")
+        state.update({"wifi": {"ssid": "home", "password": "new"}})
+
+        await asyncio.sleep(0.2)
+        assert state.get("runtime", "wifi", "ap_active") is False
         assert state.get("runtime", "wifi", "connected") is True
 
     asyncio.run(run_channel_while(channel, body))

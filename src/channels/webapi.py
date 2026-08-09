@@ -1,12 +1,15 @@
 import asyncio
 import json
 
+import machine
 from microdot import Microdot
 
 from channels.base import Channel
+from webui.webui import register_ui_routes
 
 WIFI_POLL_MS = 500
 PORT = 80
+RESTART_DELAY_MS = 300
 
 
 class WebApiChannel(Channel):
@@ -18,9 +21,16 @@ class WebApiChannel(Channel):
         self._app = Microdot()
         self._config_changed = asyncio.Event()
         self._routes()
+        register_ui_routes(self._app)
 
     def _enabled(self):
         return self.state.get("webapi", "enabled", default=True)
+
+    def _network_available(self):
+        return bool(
+            self.state.get("runtime", "wifi", "connected")
+            or self.state.get("runtime", "wifi", "ap_active")
+        )
 
     def _on_change(self, patch):
         self._shutdown_server_if_webapi_disabled(patch)
@@ -34,6 +44,15 @@ class WebApiChannel(Channel):
 
     async def _wait_for_webapi_config_change(self):
         await self._config_changed.wait()
+
+    async def _delayed_restart(self):
+        await asyncio.sleep_ms(RESTART_DELAY_MS)
+        machine.reset()
+
+    async def _handle_restart(self, request):
+        self.logger.warning("webapi", "restart requested")
+        asyncio.create_task(self._delayed_restart())
+        return {"ok": True}
 
     def _routes(self):
         app = self._app
@@ -61,6 +80,10 @@ class WebApiChannel(Channel):
         async def info(request):
             return state.info()
 
+        @app.post("/json/restart")
+        async def restart(request):
+            return await self._handle_restart(request)
+
     async def start(self):
         self._running = True
         self.state.subscribe(self._on_change)
@@ -70,7 +93,7 @@ class WebApiChannel(Channel):
                 self.logger.info("webapi", "disabled, waiting for config change")
                 await self._wait_for_webapi_config_change()
                 continue
-            while self._running and self._enabled() and not self.state.get("runtime", "wifi", "connected"):
+            while self._running and self._enabled() and not self._network_available():
                 await asyncio.sleep_ms(WIFI_POLL_MS)
             if not self._running or not self._enabled():
                 continue

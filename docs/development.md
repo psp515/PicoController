@@ -92,7 +92,7 @@ Then, matching `.github/workflows/ci.yml` (lint → build → test):
 
 - Lint: `python -m ruff check src main.py`
 - Compile-check (syntax only, all source files): `python -m compileall -q src main.py`
-- Tests: `python -m pytest` (`pythonpath` is `src`, configured in `pyproject.toml`; tests live in `tests/`)
+- Tests: `python -m pytest` (`pythonpath` is `src` and `lib`, configured in `pyproject.toml`; tests live in `tests/`)
 
 To actually try a change on hardware, copy the edited files onto the device
 as described in [Manual setup](setup.md) — there's no build step in between.
@@ -180,9 +180,10 @@ means it's picked up at runtime, `reboot` means it's only read at startup,
 | `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count`/`segmenting` live; `pin` reboot; `on_after_boot` boot only | `count` is read fresh every frame by the `Renderer`, which reallocates the NeoPixel buffer if it changed — so it's changeable at runtime, no reboot needed (floor of 1, clamped in `StateManager`); `pin` is bound once at startup; `on_after_boot` controls whether the strip lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
 | `mode` | `current`, `brightness`, `speed`, `on`, `color`, `direction` | live | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), on/off, global `color: [r, g, b]` (each 0-255, clamped) used by color-driven modes, and `direction` (`"forward"`/`"backward"`) — `"backward"` mirrors the rendered strip so animations run from the far end; applies to every mode except `off` — see [Animations](animations/index.md#direction) |
 | `modes` | one entry per mode name | live | Each mode's own params, e.g. `runner: {"length": n}`, `off: {"fade_ms": n}` — see [Animations](animations/index.md) |
-| `wifi` | `ssid`, `password` | live — channel reconnects | Empty `ssid` disables Wi-Fi — and with it MQTT, which requires Wi-Fi; changing credentials makes the channel reconnect, with automatic revert to the last working credentials if the new ones never connect — see [Channel internals](contributing/channels.md#changing-credentials-at-runtime) |
+| `wifi` | `ssid`, `password`, `ap_ssid`, `ap_password` | live — channel reconnects | Empty `ssid` disables Wi-Fi — and with it MQTT, which requires Wi-Fi; changing credentials makes the channel reconnect, with automatic revert to the last working credentials if the new ones never connect; `ap_ssid`/`ap_password` configure the device's own fallback setup network — see [Channel internals](contributing/channels.md#changing-credentials-at-runtime) |
 | `mqtt` | `enabled`, `server`, `port`, `user`, `password`, `base_topic`, `use_single_topic_for_state_update`, `ssl`, `ssl_params`, `certificate` (`validate`, `name`), `ntp_host` | live — session restarts | Disabled when `enabled` is `false`, `server` is empty, Wi-Fi is disabled, or (when `ssl` and `certificate.validate` are both true) the cert at `certs/<certificate.name>` isn't readable — fail-closed, no silent fallback to unverified TLS; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting; any change tears the session down (publishing `"offline"` on the old topic) and reconnects with the new config — see [Channel internals](contributing/channels.md#certificate-validation) |
 | `button` | `pin`, `enabled` | `pin` reboot; `enabled` live | GPIO for the cover button; `enabled: false` makes the channel ignore presses |
+| `webapi` | `enabled` | live | JSON API + Web UI server; `enabled: false` shuts the server down (`start_server`'s task exits and waits for the flag to flip back) |
 | `logging` | `enabled`, `level` | live | Disabled by default; `level` is one of `debug`/`info`/`warning`/`error`; both checked on every log call |
 | `watchdog` | `enabled` | reboot | Hardware watchdog (see below); disabled by default, enable on production devices; checked once at startup — the RP2040 watchdog can't be disarmed once running anyway |
 

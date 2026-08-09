@@ -11,7 +11,12 @@ It is a MicroPython ARGB LED Controller.
   - NEC Reveiver
   - Button on the cover
   - MQTT Protocol
-  - Web API 
+  - Web API + a browser Web UI (dashboard + full-config page) served by the
+    device itself
+- If the configured Wi-Fi network is empty or unreachable, the device falls
+  back to its own temporary access point so the Web UI is always reachable
+  to fix credentials — see [Configuration](#configuration) and
+  `docs/channels/wifi.md`
 - Controller Mircopython code should be as simple as possible to understand without complex elements
   - for that aplication might use python abstractions to abtract elements like modes communications and so on
 - Controller should support multiple Animation Modes and animations should be easilly extensible
@@ -29,7 +34,6 @@ It is a MicroPython ARGB LED Controller.
 ### Future directions
 
 If introducing helpfull abstraction will not be problematic it is advised to apply this abstraction.
-- Controller might be extended with Web UI
 - in future there will be more like WS2811 LED 12V support
 - introducing more modes 
 
@@ -65,10 +69,15 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   strip or renderer directly. State Manager class manages channels 
 - Communication channels (MQTT, Web API, IR, button) are abstracted behind a common
   interface so new channels can be added without changing core logic. (`src/channels/`)
-- The Wi-Fi channel is the radio's single owner. No other code drives the
-  interface — mqtt uses `ExternalWifiMQTTClient` (subclass in
-  `src/channels/mqtt.py`) so `mqtt_as` never connects/disconnects Wi-Fi itself,
-  it only waits for the radio to be up.
+- The Wi-Fi channel is the radio's single owner — both `STA_IF` and `AP_IF`.
+  No other code drives either interface — mqtt uses `ExternalWifiMQTTClient`
+  (subclass in `src/channels/mqtt.py`) so `mqtt_as` never connects/disconnects
+  Wi-Fi itself, it only waits for the radio to be up. The AP is a fallback
+  only, never run concurrently with an active station connection (shared
+  single-radio channel constraints) — see `docs/contributing/channels.md`.
+- The Web API channel keeps JSON API routes (`src/channels/webapi.py`) and
+  static Web UI routes (`src/webui.py`) in separate modules sharing one
+  `Microdot` app/port, so either can change without touching the other.
 - Application should start as quickly as possible and cahnnels should start concurrenctly
 
 ## Selected libraries
@@ -95,7 +104,10 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   `webapi.enabled`, `button.enabled`, `ir.enabled`, default true, dynamic):
   disabled channels skip their work loop and just sleep/wait. Wifi's
   "disabled" state is an empty `ssid`; a disabled wifi also disables mqtt
-  (mqtt requires non-empty `wifi.ssid`).
+  (mqtt requires non-empty `wifi.ssid`). Empty `ssid`, and a configured
+  network the device can't reach after a few tries, both fall back to the
+  same temporary access point (`wifi.ap_ssid`/`wifi.ap_password`) rather than
+  idling — the Web UI stays reachable either way.
 - Every config key must be documented in the docs config tables — the
   user channel page's "Settings" table and/or the "Top-level keys"
   table in `docs/development.md` — with its default and what it's used for.
@@ -170,7 +182,7 @@ Mirrors `.github/workflows/ci.yml` (lint → build → test), runs on CPython, n
 
 - Lint: `python -m ruff check src main.py`
 - Compile-check (syntax only, all source files): `python -m compileall -q src main.py`
-- Tests: `python -m pytest` (pythonpath is `src`, configured in `pyproject.toml`; tests live in `tests/`)
+- Tests: `python -m pytest` (pythonpath is `src` and `lib`, configured in `pyproject.toml`; tests live in `tests/`)
 - Always invoke tools via `python -m` (`ruff`, `pytest`) — bare executables are not on PATH here.
 
 ## Documentation (GitHub Pages)

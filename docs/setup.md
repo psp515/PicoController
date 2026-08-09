@@ -114,6 +114,12 @@ To configure it upfront instead, create `config.json` with the same shape as
 
 Copy that `config.json` onto the device alongside `main.py`/`src`/`lib`.
 
+Don't have Wi-Fi credentials to hand yet, or want to configure the device
+from your phone instead of hand-editing JSON? Skip this step — on first boot
+with no `wifi.ssid` set, the device opens its own temporary Wi-Fi network so
+you can configure everything from a browser. See
+[Can't connect? The device opens its own setup network](channels/wifi.md#cant-connect-the-device-opens-its-own-setup-network).
+
 `wifi.*` and `mqtt.*` are applied at runtime (the channels reconnect on the
 spot when the config changes), but the pin assignments (`leds.pin`,
 `button.pin`), `watchdog.enabled`, and `leds.on_after_boot` are
@@ -131,7 +137,7 @@ local development, so real credentials never end up in the repo).
 ## 5. First boot
 
 Power the board. Startup order is: load config → start renderer + autosave
-task → start all channels concurrently (Wi-Fi, button, MQTT).
+task → start all channels concurrently (Wi-Fi, button, MQTT, Web API).
 Nothing blocks on Wi-Fi/MQTT connecting — the LED strip lights up immediately
 using the persisted mode.
 
@@ -141,10 +147,13 @@ console appender — watch them over the USB serial REPL.
 ## 6. Talking to the device
 
 MQTT waits until Wi-Fi is connected before doing anything — check
-`runtime.wifi.connected` if a message doesn't seem to land. For topics and
-payload examples, see:
+`runtime.wifi.connected` if a message doesn't seem to land. The Web UI works
+as soon as the device has *any* network up, including its own setup network.
+For topics, payloads, and the dashboard, see:
 
 - [MQTT](channels/mqtt.md) — topics, retained state, last will
+- [Web API](channels/webapi.md) — the browser dashboard and configuration
+  page
 
 ## Developing or extending it
 

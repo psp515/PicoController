@@ -52,18 +52,24 @@ class Channel:
 
 Implemented in `src/channels/wifi.py`. It doesn't accept commands from
 anything — it only keeps the station interface connected and publishes
-`runtime.wifi.connected`/`runtime.wifi.ip`, which other channels can use.
+`runtime.wifi.connected`/`runtime.wifi.ip` (station) and
+`runtime.wifi.ap_active`/`runtime.wifi.ap_ip` (setup AP), which other
+channels can use — `webapi.py`'s gating on either flag is the main consumer,
+see [Web API / Web UI channel](#web-api--web-ui-channel).
 
-### Backoff-and-monitor loop
+### Backoff-and-monitor loop, escalating to a setup AP
 
-There's no external library here, just `network.WLAN(network.STA_IF)` driven
-from a single `uasyncio` loop — connect, monitor while connected, and on drop
-retry with exponential backoff.
+There's no external library here, just `network.WLAN(network.STA_IF)` (and,
+for the fallback, `network.WLAN(network.AP_IF)`) driven from a single
+`uasyncio` loop — connect, monitor while connected, retry with exponential
+backoff on drop, and after enough consecutive failures fall back to a
+temporary access point instead of retrying forever.
 
-- **`wifi.ssid` must be non-empty.** Empty is the explicit "disabled" state:
-  `start()` logs a warning, publishes `connected: false`, and waits until the
-  `wifi` config section changes — setting an `ssid` in the config enables the
-  channel on the spot when the change lands, no reboot.
+- **`wifi.ssid` must be non-empty.** Empty is the explicit "disabled" state,
+  but it's not idle: `start()` logs a warning, publishes `connected: false`,
+  and immediately runs `_run_ap_fallback()` — there being no credentials
+  configured is treated the same as never being able to connect, so a
+  factory-fresh device is reachable via its own AP from the first boot.
 - **Radio is reset at the start of every connection cycle.**
   `_wlan.active(False)` then a `RADIO_RESET_MS` pause before the connect loop
   begins — once at startup and again after every config change, to clear any
@@ -72,26 +78,42 @@ retry with exponential backoff.
   `_connect()` polls `_wlan.isconnected()` every 500 ms up to
   `CONNECT_TIMEOUT_MS`, `await`ing between polls — it never blocks the event
   loop.
-- **Backoff only applies to failed attempts.** On success, the poll interval
-  is the fixed `MONITOR_MS` and backoff resets to `BACKOFF_MIN_MS`; on
-  failure, the wait before retrying doubles each time up to `BACKOFF_MAX_MS`.
+- **Backoff only applies to failed attempts**, and only up to a point. On
+  success, the poll interval is the fixed `MONITOR_MS` and backoff resets to
+  `BACKOFF_MIN_MS`; on failure, the wait before retrying doubles each time up
+  to `BACKOFF_MAX_MS` — but once `failures` reaches `AP_FALLBACK_ATTEMPTS`
+  (checked *after* the last-known-good revert check below, so a credential
+  revert always takes priority over showing the AP), the channel calls
+  `_run_ap_fallback()` instead of sleeping, and resets `failures`/`backoff`
+  once it returns so the next attempt starts a fresh backoff ramp.
+- **`_run_ap_fallback()`** deactivates the station interface, brings up
+  `network.WLAN(network.AP_IF)` with `wifi.ap_ssid`/`wifi.ap_password` (open
+  if the password is empty), publishes `ap_active: true`/`ap_ip`, then sleeps
+  in `AP_POLL_MS` slices up to `AP_FALLBACK_MS` — checking
+  `_reconnect_requested()` every slice, so a config change (e.g. the user
+  just fixed the credentials through the [Web UI](webapi.md), itself only
+  reachable because `webapi.py` starts once `ap_active` is true) breaks out
+  of the wait immediately instead of waiting out the full window. Either way
+  it deactivates the AP and publishes `ap_active: false` before returning.
 - **Downstream channels gate on state, not on this channel directly.**
-  `WifiChannel` never calls into `MqttChannel` — it just writes
-  `runtime.wifi.connected`/`ip` to shared state, and those channels poll that
-  field themselves.
+  `WifiChannel` never calls into `MqttChannel`/`WebApiChannel` — it just
+  writes to shared state, and those channels poll the fields they need
+  themselves.
 
 `start()` subscribes to state changes once, then loops over *connection cycles*
 — one cycle per set of credentials:
 
-1. Read `wifi.ssid`/`wifi.password`. If `ssid` is empty, publish disconnected
-   and wait until the `wifi` config section changes.
+1. Read `wifi.ssid`/`wifi.password`. If `ssid` is empty, publish disconnected,
+   run the AP-fallback cycle once, then re-check (covers the case where
+   credentials get set while the AP is up).
 2. Reset the radio (`active(False)`, sleep `RADIO_RESET_MS`).
-3. Loop (`_run()`), until the `wifi` config section changes:
+3. Loop (`_keep_connected()`), until the `wifi` config section changes:
    - If already connected, remember the credentials as last-known-good,
      publish connected + IP, sleep `MONITOR_MS`, and check again.
    - Otherwise publish disconnected, attempt `_connect()`. On success, loop
-     back immediately. On failure, sleep the current backoff, then double it
-     (capped at `BACKOFF_MAX_MS`).
+     back immediately. On failure: check the last-known-good revert
+     condition first, then the AP-fallback threshold (see above), then fall
+     through to the backoff sleep.
 4. When the config changes, disconnect and start the next cycle with the new
    credentials.
 
@@ -118,13 +140,16 @@ reconnects with the new credentials — no reboot. Two things to know:
 |---|---|---|
 | `start()` | `Channel` interface | Runs the connection-cycle loop; the device's single long-lived entry point for this channel |
 | `stop()` | `Channel` interface | Disconnects and deactivates the radio |
-| `_keep_connected(ssid, password)` | internal | One connection cycle: connect/monitor/backoff loop for one set of credentials, exits when a reconnect is requested |
+| `_keep_connected(ssid, password)` | internal | One connection cycle: connect/monitor/backoff loop for one set of credentials, escalating to AP-fallback after repeated failures, exits when a reconnect is requested |
 | `_connect(ssid, password)` | internal | One bounded connection attempt, `await`-polled up to `CONNECT_TIMEOUT_MS` |
 | `_reset_radio()` | internal | Deactivates the radio and pauses `RADIO_RESET_MS` before a cycle begins |
+| `_run_ap_fallback()` | internal | Brings up the setup AP, waits up to `AP_FALLBACK_MS` (interruptible by a config change), tears it back down |
+| `_ap_credentials()` | internal | Reads `wifi.ap_ssid`/`ap_password`, defaulting the SSID to `"<device.name>-setup"` |
 | `_on_change(patch)` | internal | `StateManager` subscriber; delegates to `_request_reconnect_if_wifi_changed` |
-| `_request_reconnect_if_wifi_changed(patch)` / `_reconnect_requested()` / `_clear_reconnect_request()` / `_wait_for_wifi_config_change()` | internal | Intention-named wrappers around the channel's reconnect event |
+| `_request_reconnect_if_wifi_changed(patch)` / `_reconnect_requested()` / `_clear_reconnect_request()` | internal | Intention-named wrappers around the channel's reconnect event |
 | `_should_revert_credentials(...)` / `_revert_to_last_good(failures)` | internal | The bad-credential safeguard: decides when new credentials are hopeless and writes the last-known-good ones back into state |
 | `_publish(connected, ip)` | internal | De-dupes against the last known state, logs on change, and writes `runtime.wifi.connected`/`ip` |
+| `_publish_ap(active, ip)` | internal | Same de-dupe pattern as `_publish`, for `runtime.wifi.ap_active`/`ap_ip` |
 
 ## Button channel
 
@@ -439,6 +464,90 @@ that derives the topic strings from `base_topic` + single-topic mode, and
 | `_filter_set_patch(patch)` | Background tasks | Implements the allow-list above |
 | `_resolve_hex_color(mode_fields)` | Background tasks | Converts an incoming `mode.hexColor` string into `mode.color` (`hex_to_rgb`) |
 | `_publish_state()` | Background tasks | Publishes the retained full-state payload whenever `state` changes; adds `mode.hexColor` (`rgb_to_hex`) |
+
+## Web API / Web UI channel
+
+Implemented in `src/channels/webapi.py`, built on the vendored `microdot`
+(`lib/microdot`, single-file, works unmodified on both MicroPython and
+CPython — that's what makes it testable on host). It's the one channel that
+serves *out* to a client rather than reading an input, but it follows the
+same shape: `state.update(...)` on `POST /json/state`, nothing else touches
+the LED strip or renderer directly.
+
+### Gating: same server, two ways to reach it
+
+`start()` waits for `webapi.enabled` and for `_network_available()` —
+`runtime.wifi.connected` **or** `runtime.wifi.ap_active` — before calling
+`self._app.start_server(port=PORT)`, so the dashboard works identically
+whether the device joined your network or fell back to its own [setup
+AP](#wi-fi-channel). A patch touching `webapi` (`_on_change`) sets a restart
+event and, if the channel just got disabled, calls `self._app.shutdown()`
+directly from inside the request handler that made the change — `shutdown()`
+only *schedules* termination for after the in-flight response is sent, so
+the client that just flipped `webapi.enabled: false` still gets its `{"ok":
+true}` back before the server actually stops.
+
+### Routes: API and UI, same app, separate modules
+
+`_routes()` (in `webapi.py`) registers the JSON API:
+
+| Route | What it does |
+|---|---|
+| `GET /json/state` | Returns the full state (config + `mode`/`runtime`) |
+| `POST /json/state` | Merges a JSON patch into state via `state.update(...)` |
+| `GET /info` | `{"id", "version", "uptime_ms"}` |
+| `POST /json/restart` | `_handle_restart` — see below |
+
+`register_ui_routes(app)` (in `src/webui.py`, a plain function, not a
+`Channel`) registers the static UI on the *same* `Microdot` instance —
+called from `WebApiChannel.__init__` right after `_routes()`:
+
+| Route | Serves |
+|---|---|
+| `GET /` | `src/webui/static/index.html` — the dashboard |
+| `GET /config` | `src/webui/static/config.html` — the full config editor |
+| `GET /style.css`, `GET /app.js` | Shared styling and the client-side glue |
+
+Each uses `Response.send_file(...)` (microdot's static-file helper) to read
+straight off the filesystem — no templating, no build step. Because deploy
+already copies `src/` onto the device wholesale (see [Manual
+setup](../setup.md)), the static files ship with the rest of the code, no
+separate deploy step. Splitting API routes (`webapi.py`) from UI routes
+(`webui.py`) into separate modules — while still sharing one `app`/port — is
+deliberate: either can change without touching the other, and it keeps
+`webapi.py` focused on state, not markup.
+
+The pages themselves are plain HTML/CSS with one small vanilla `app.js` (no
+framework, no build step): on load it `GET`s `/json/state` and populates
+form fields; on change it `POST`s a patch back — sliders are debounced
+client-side (300ms) so dragging one doesn't flood `state.update()` (which
+itself debounces the flash write, but there's no reason to send a request
+per animation frame of a drag). `config.html`'s inputs carry a `data-key`
+attribute (e.g. `data-key="leds.segmenting.length"`) that `app.js` walks as a
+dot-path to read/write the nested JSON — adding a new config field to the
+page means adding one labeled input with the right `data-key`, no JS
+changes.
+
+### Restart
+
+`POST /json/restart` calls `_handle_restart`, which schedules
+`_delayed_restart` as a background task and returns `{"ok": true}`
+immediately — `_delayed_restart` waits `RESTART_DELAY_MS` (300ms) before
+calling `machine.reset()`, so the HTTP response has time to actually reach
+the client before the device drops off the network.
+
+### Web API exposed functions
+
+| Function | Section | What it does |
+|---|---|---|
+| `start()` | `Channel` interface | Waits for enabled + network, runs the server, loops on restart |
+| `stop()` | `Channel` interface | Shuts the server down |
+| `_enabled()` | Enablement | Reads `webapi.enabled` |
+| `_network_available()` | Enablement | `runtime.wifi.connected` or `runtime.wifi.ap_active` |
+| `_on_change(patch)` / `_shutdown_server_if_webapi_disabled(patch)` | Enablement | `StateManager` subscriber; shuts the server down mid-request-cycle if `webapi.enabled` just went false |
+| `_wait_for_webapi_config_change()` | Enablement | Intention-named wrapper around the channel's restart event |
+| `_routes()` | Routing | Registers the JSON API on `self._app` |
+| `_handle_restart(request)` / `_delayed_restart()` | Restart | Schedules `machine.reset()` after `RESTART_DELAY_MS` so the response reaches the client first |
 
 ## Adding a new channel
 

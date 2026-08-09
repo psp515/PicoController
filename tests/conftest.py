@@ -49,6 +49,7 @@ if "machine" not in sys.modules:
     machine_stub.RTC = _RTCStub
     machine_stub.unique_id = lambda: b"dev"
     machine_stub.Pin = _PinStub
+    machine_stub.reset = lambda: None
     sys.modules["machine"] = machine_stub
 
 # channels/ir.py imports ir_rx.nec (Peter Hinch micropython_ir), a
@@ -78,6 +79,7 @@ if "ir_rx" not in sys.modules:
 if "network" not in sys.modules:
     network_stub = types.ModuleType("network")
     network_stub.STA_IF = 0
+    network_stub.AP_IF = 1
 
     class _WLANStub:
         def __init__(self, interface):
@@ -93,6 +95,9 @@ if "network" not in sys.modules:
             return False
 
         def disconnect(self):
+            pass
+
+        def config(self, **kwargs):
             pass
 
         def ifconfig(self):

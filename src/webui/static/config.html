@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PicoController - Configuration</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>PicoController</h1>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a class="active" href="/config">Configuration</a>
+  </nav>
+</header>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+
+  <form id="config-form">
+    <section class="card">
+      <h2>Device</h2>
+      <label class="field"><span>Name</span>
+        <input type="text" data-key="device.name">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Wi-Fi</h2>
+      <label class="field"><span>Network name (SSID)</span>
+        <input type="text" data-key="wifi.ssid">
+      </label>
+      <label class="field"><span>Password</span>
+        <input type="password" data-key="wifi.password">
+      </label>
+      <label class="field"><span>Setup network name</span>
+        <input type="text" data-key="wifi.ap_ssid" placeholder="&lt;device name&gt;-setup">
+      </label>
+      <label class="field"><span>Setup network password</span>
+        <input type="password" data-key="wifi.ap_password" placeholder="open (no password)">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>LEDs</h2>
+      <label class="field"><span>Count</span>
+        <input type="number" min="1" data-key="leds.count">
+      </label>
+      <label class="field"><span>Data pin</span>
+        <input type="number" min="0" data-key="leds.pin">
+      </label>
+      <label class="field"><span>On after boot</span>
+        <input type="checkbox" data-key="leds.on_after_boot">
+      </label>
+      <label class="field"><span>Segmenting enabled</span>
+        <input type="checkbox" data-key="leds.segmenting.enabled">
+      </label>
+      <label class="field"><span>Segment length</span>
+        <input type="number" min="2" data-key="leds.segmenting.length">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Mode</h2>
+      <label class="field"><span>Current mode</span>
+        <input type="text" data-key="mode.current">
+      </label>
+      <label class="field"><span>Brightness</span>
+        <input type="number" min="1" max="100" data-key="mode.brightness">
+      </label>
+      <label class="field"><span>Speed</span>
+        <input type="number" min="1" max="100" data-key="mode.speed">
+      </label>
+      <label class="field"><span>On</span>
+        <input type="checkbox" data-key="mode.on">
+      </label>
+      <label class="field"><span>Color</span>
+        <input type="color" data-key="mode.color">
+      </label>
+      <label class="field"><span>Direction</span>
+        <select data-key="mode.direction">
+          <option value="forward">Forward</option>
+          <option value="backward">Backward</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Mode settings</h2>
+      <label class="field"><span>Off: fade duration (ms)</span>
+        <input type="number" min="0" data-key="modes.off.fade_ms">
+      </label>
+      <label class="field"><span>Runner: length</span>
+        <input type="number" min="1" data-key="modes.runner.length">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>MQTT</h2>
+      <label class="field"><span>Enabled</span>
+        <input type="checkbox" data-key="mqtt.enabled">
+      </label>
+      <label class="field"><span>Server</span>
+        <input type="text" data-key="mqtt.server">
+      </label>
+      <label class="field"><span>Port</span>
+        <input type="number" min="1" max="65535" data-key="mqtt.port">
+      </label>
+      <label class="field"><span>User</span>
+        <input type="text" data-key="mqtt.user">
+      </label>
+      <label class="field"><span>Password</span>
+        <input type="password" data-key="mqtt.password">
+      </label>
+      <label class="field"><span>Base topic</span>
+        <input type="text" data-key="mqtt.base_topic">
+      </label>
+      <label class="field"><span>Single topic for state updates</span>
+        <input type="checkbox" data-key="mqtt.use_single_topic_for_state_update">
+      </label>
+      <label class="field"><span>SSL</span>
+        <input type="checkbox" data-key="mqtt.ssl">
+      </label>
+      <label class="field"><span>Validate certificate</span>
+        <input type="checkbox" data-key="mqtt.certificate.validate">
+      </label>
+      <label class="field"><span>Certificate filename</span>
+        <input type="text" data-key="mqtt.certificate.name" placeholder="certs/&lt;name&gt;">
+      </label>
+      <label class="field"><span>NTP host</span>
+        <input type="text" data-key="mqtt.ntp_host">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Logging</h2>
+      <label class="field"><span>Enabled</span>
+        <input type="checkbox" data-key="logging.enabled">
+      </label>
+      <label class="field"><span>Level</span>
+        <select data-key="logging.level">
+          <option value="debug">debug</option>
+          <option value="info">info</option>
+          <option value="warning">warning</option>
+          <option value="error">error</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Button</h2>
+      <label class="field"><span>Pin</span>
+        <input type="number" min="0" data-key="button.pin">
+      </label>
+      <label class="field"><span>Enabled</span>
+        <input type="checkbox" data-key="button.enabled">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>IR remote</h2>
+      <label class="field"><span>Pin</span>
+        <input type="number" min="0" data-key="ir.pin">
+      </label>
+      <label class="field"><span>Enabled</span>
+        <input type="checkbox" data-key="ir.enabled">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Web API</h2>
+      <label class="field"><span>Enabled</span>
+        <input type="checkbox" data-key="webapi.enabled">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Watchdog</h2>
+      <label class="field"><span>Enabled (reboot required)</span>
+        <input type="checkbox" data-key="watchdog.enabled">
+      </label>
+    </section>
+
+    <button type="submit" class="primary">Save</button>
+  </form>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>
