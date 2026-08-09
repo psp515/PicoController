@@ -110,6 +110,7 @@ def test_static_routes_serve_files():
 
         for path, content_type in [
             ("/", "text/html"),
+            ("/modes", "text/html"),
             ("/config", "text/html"),
             ("/style.css", "text/css"),
             ("/app.js", "application/javascript"),
@@ -119,6 +120,22 @@ def test_static_routes_serve_files():
             response = await handler(req)
             assert response.status_code == 200
             assert response.headers["Content-Type"].startswith(content_type)
+
+    asyncio.run(scenario())
+
+
+def test_wifi_scan_endpoint_sets_request_flag():
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        req = FakeRequest("POST", "/json/wifi/scan")
+        handler, _prefix, _subapp = channel._app.find_route(req)
+        result = await handler(req)
+
+        assert result == {"ok": True}
+        assert state.get("runtime", "wifi", "scan_requested") is True
 
     asyncio.run(scenario())
 

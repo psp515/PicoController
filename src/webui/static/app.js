@@ -54,9 +54,17 @@ function showBanner(text) {
 
 const debouncedPatch = debounce(postPatch, 300);
 
-function initDashboard(state) {
-  document.getElementById("device-name").textContent = state.device.name;
+function initNav() {
+  const toggle = document.getElementById("menu-toggle");
+  const nav = document.getElementById("main-nav");
+  if (!toggle || !nav) return;
+  toggle.addEventListener("click", () => {
+    const open = nav.classList.toggle("open");
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+}
 
+function initDashboard(state) {
   const modeSelect = document.getElementById("mode-current");
   Object.keys(state.modes)
     .filter((name) => name !== "off")
@@ -129,8 +137,16 @@ function initDashboard(state) {
   });
 }
 
-function initConfig(state) {
-  const form = document.getElementById("config-form");
+function updateCollapsible(checkbox) {
+  const targetId = checkbox.dataset.toggles;
+  if (!targetId) return;
+  const target = document.getElementById(targetId);
+  if (target) target.hidden = !checkbox.checked;
+}
+
+function initFormPage(formId, state) {
+  const form = document.getElementById(formId);
+  if (!form) return;
   const inputs = form.querySelectorAll("[data-key]");
 
   inputs.forEach((input) => {
@@ -142,6 +158,10 @@ function initConfig(state) {
       input.value = rgbToHex(value);
     } else {
       input.value = value;
+    }
+    if (input.dataset.toggles) {
+      updateCollapsible(input);
+      input.addEventListener("change", () => updateCollapsible(input));
     }
   });
 
@@ -165,12 +185,85 @@ function initConfig(state) {
   });
 }
 
+function initLedTest() {
+  const button = document.getElementById("leds-test-btn");
+  const countInput = document.getElementById("leds-count-input");
+  if (!button || !countInput) return;
+  button.addEventListener("click", () => {
+    const count = Number(countInput.value);
+    if (!count || count < 1) return;
+    postPatch({
+      leds: { count },
+      mode: { on: true, current: "static", color: [255, 255, 255] },
+    }).then(() => showBanner("Lit " + count + " LEDs"));
+  });
+}
+
+function renderScanResults(results) {
+  const list = document.getElementById("wifi-scan-results");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!results.length) {
+    const li = document.createElement("li");
+    li.textContent = "No networks found";
+    list.appendChild(li);
+    return;
+  }
+  results
+    .slice()
+    .sort((a, b) => b.rssi - a.rssi)
+    .forEach((net) => {
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      name.textContent = net.ssid + (net.open ? "" : " (secured)");
+      const signal = document.createElement("span");
+      signal.className = "signal";
+      signal.textContent = net.rssi + " dBm";
+      li.appendChild(name);
+      li.appendChild(signal);
+      li.addEventListener("click", () => {
+        const ssidField = document.querySelector('[data-key="wifi.ssid"]');
+        if (ssidField) ssidField.value = net.ssid;
+      });
+      list.appendChild(li);
+    });
+}
+
+function initWifiScan() {
+  const button = document.getElementById("wifi-scan-btn");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    button.disabled = true;
+    button.textContent = "Scanning...";
+    fetch("/json/wifi/scan", { method: "POST" }).then(() => {
+      let attempts = 0;
+      const poll = () => {
+        attempts += 1;
+        fetchState().then((state) => {
+          const wifi = state.runtime && state.runtime.wifi ? state.runtime.wifi : {};
+          if (!wifi.scan_requested || attempts >= 10) {
+            button.disabled = false;
+            button.textContent = "Scan for networks";
+            renderScanResults(wifi.scan_results || []);
+          } else {
+            setTimeout(poll, 700);
+          }
+        });
+      };
+      setTimeout(poll, 700);
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  initNav();
   fetchState().then((state) => {
-    if (document.getElementById("config-form")) {
-      initConfig(state);
-    } else if (document.getElementById("mode-current")) {
+    if (document.getElementById("mode-current")) {
       initDashboard(state);
     }
+    initFormPage("config-form", state);
+    initFormPage("modes-form", state);
+    initLedTest();
+    initWifiScan();
   });
 });

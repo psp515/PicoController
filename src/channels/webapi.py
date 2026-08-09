@@ -84,6 +84,11 @@ class WebApiChannel(Channel):
         async def restart(request):
             return await self._handle_restart(request)
 
+        @app.post("/json/wifi/scan")
+        async def wifi_scan(request):
+            state.update({"runtime": {"wifi": {"scan_requested": True}}})
+            return {"ok": True}
+
     async def start(self):
         self._running = True
         self.state.subscribe(self._on_change)

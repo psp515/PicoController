@@ -117,14 +117,15 @@ Copy that `config.json` onto the device alongside `main.py`/`src`/`lib`.
 Don't have Wi-Fi credentials to hand yet, or want to configure the device
 from your phone instead of hand-editing JSON? Skip this step — on first boot
 with no `wifi.ssid` set, the device opens its own temporary Wi-Fi network so
-you can configure everything from a browser. See
+you can configure everything from a browser. It stays open until you restart
+the device. See
 [Can't connect? The device opens its own setup network](channels/wifi.md#cant-connect-the-device-opens-its-own-setup-network).
 
-`wifi.*` and `mqtt.*` are applied at runtime (the channels reconnect on the
-spot when the config changes), but the pin assignments (`leds.pin`,
-`button.pin`), `watchdog.enabled`, and `leds.on_after_boot` are
-only read at boot — changing those means editing the config and rebooting.
-See the per-key **Applies** column in the
+`mqtt.*` is applied at runtime (the channel reconnects on the spot when the
+config changes). `wifi.*`, the pin assignments (`leds.pin`, `button.pin`),
+`watchdog.enabled`, and `leds.on_after_boot` are only read at boot —
+changing those means editing the config (or saving from the Web UI) and
+restarting. See the per-key **Applies** column in the
 [Development guide](development.md#top-level-keys).
 
 All runtime state lives in the same file: mode, brightness, speed, and on/off

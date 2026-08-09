@@ -8,9 +8,33 @@
 </head>
 <body>
 <header class="topbar">
-  <h1>PicoController</h1>
-  <nav>
+  <div class="brand">
+    <!-- icon placeholder, swap for a real logo later -->
+    <span class="icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="12" cy="10" r="6"></circle>
+        <line x1="9" y1="20" x2="15" y2="20"></line>
+        <line x1="10" y1="17" x2="14" y2="17"></line>
+      </svg>
+    </span>
+    <div class="titles">
+      <a class="site-name" href="/">PicoController</a>
+      <nav class="breadcrumb" aria-hidden="true">
+        <a href="/">PicoController</a><span>/</span><span>Configuration</span>
+      </nav>
+    </div>
+  </div>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+    <!-- icon placeholder -->
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
+  <nav class="main-nav" id="main-nav">
     <a href="/">Dashboard</a>
+    <a href="/modes">Modes</a>
     <a class="active" href="/config">Configuration</a>
   </nav>
 </header>
@@ -28,24 +52,35 @@
 
     <section class="card">
       <h2>Wi-Fi</h2>
-      <label class="field"><span>Network name (SSID)</span>
-        <input type="text" data-key="wifi.ssid">
-      </label>
-      <label class="field"><span>Password</span>
-        <input type="password" data-key="wifi.password">
-      </label>
-      <label class="field"><span>Setup network name</span>
-        <input type="text" data-key="wifi.ap_ssid" placeholder="&lt;device name&gt;-setup">
-      </label>
-      <label class="field"><span>Setup network password</span>
-        <input type="password" data-key="wifi.ap_password" placeholder="open (no password)">
-      </label>
+      <div class="subsection">
+        <h3>Your network</h3>
+        <label class="field"><span>Network name (SSID)</span>
+          <input type="text" data-key="wifi.ssid">
+        </label>
+        <label class="field"><span>Password</span>
+          <input type="password" data-key="wifi.password">
+        </label>
+        <div class="action-row">
+          <button type="button" id="wifi-scan-btn" class="secondary">Scan for networks</button>
+        </div>
+        <ul class="scan-results" id="wifi-scan-results"></ul>
+        <p class="hint">Changes to the network name/password only take effect after a restart.</p>
+      </div>
+      <div class="subsection">
+        <h3>Setup network (fallback access point)</h3>
+        <label class="field"><span>Name</span>
+          <input type="text" data-key="wifi.ap_ssid" placeholder="&lt;device name&gt;-setup">
+        </label>
+        <label class="field"><span>Password</span>
+          <input type="password" data-key="wifi.ap_password" placeholder="open (no password)">
+        </label>
+      </div>
     </section>
 
     <section class="card">
       <h2>LEDs</h2>
       <label class="field"><span>Count</span>
-        <input type="number" min="1" data-key="leds.count">
+        <input type="number" min="1" id="leds-count-input" data-key="leds.count">
       </label>
       <label class="field"><span>Data pin</span>
         <input type="number" min="0" data-key="leds.pin">
@@ -59,113 +94,89 @@
       <label class="field"><span>Segment length</span>
         <input type="number" min="2" data-key="leds.segmenting.length">
       </label>
-    </section>
-
-    <section class="card">
-      <h2>Mode</h2>
-      <label class="field"><span>Current mode</span>
-        <input type="text" data-key="mode.current">
-      </label>
-      <label class="field"><span>Brightness</span>
-        <input type="number" min="1" max="100" data-key="mode.brightness">
-      </label>
-      <label class="field"><span>Speed</span>
-        <input type="number" min="1" max="100" data-key="mode.speed">
-      </label>
-      <label class="field"><span>On</span>
-        <input type="checkbox" data-key="mode.on">
-      </label>
-      <label class="field"><span>Color</span>
-        <input type="color" data-key="mode.color">
-      </label>
-      <label class="field"><span>Direction</span>
-        <select data-key="mode.direction">
-          <option value="forward">Forward</option>
-          <option value="backward">Backward</option>
-        </select>
-      </label>
-    </section>
-
-    <section class="card">
-      <h2>Mode settings</h2>
-      <label class="field"><span>Off: fade duration (ms)</span>
-        <input type="number" min="0" data-key="modes.off.fade_ms">
-      </label>
-      <label class="field"><span>Runner: length</span>
-        <input type="number" min="1" data-key="modes.runner.length">
-      </label>
+      <div class="action-row">
+        <button type="button" id="leds-test-btn" class="secondary">Test (light strip to Count)</button>
+      </div>
     </section>
 
     <section class="card">
       <h2>MQTT</h2>
       <label class="field"><span>Enabled</span>
-        <input type="checkbox" data-key="mqtt.enabled">
+        <input type="checkbox" data-key="mqtt.enabled" data-toggles="mqtt-fields">
       </label>
-      <label class="field"><span>Server</span>
-        <input type="text" data-key="mqtt.server">
-      </label>
-      <label class="field"><span>Port</span>
-        <input type="number" min="1" max="65535" data-key="mqtt.port">
-      </label>
-      <label class="field"><span>User</span>
-        <input type="text" data-key="mqtt.user">
-      </label>
-      <label class="field"><span>Password</span>
-        <input type="password" data-key="mqtt.password">
-      </label>
-      <label class="field"><span>Base topic</span>
-        <input type="text" data-key="mqtt.base_topic">
-      </label>
-      <label class="field"><span>Single topic for state updates</span>
-        <input type="checkbox" data-key="mqtt.use_single_topic_for_state_update">
-      </label>
-      <label class="field"><span>SSL</span>
-        <input type="checkbox" data-key="mqtt.ssl">
-      </label>
-      <label class="field"><span>Validate certificate</span>
-        <input type="checkbox" data-key="mqtt.certificate.validate">
-      </label>
-      <label class="field"><span>Certificate filename</span>
-        <input type="text" data-key="mqtt.certificate.name" placeholder="certs/&lt;name&gt;">
-      </label>
-      <label class="field"><span>NTP host</span>
-        <input type="text" data-key="mqtt.ntp_host">
-      </label>
+      <div class="collapsible" id="mqtt-fields">
+        <label class="field"><span>Server</span>
+          <input type="text" data-key="mqtt.server">
+        </label>
+        <label class="field"><span>Port</span>
+          <input type="number" min="1" max="65535" data-key="mqtt.port">
+        </label>
+        <label class="field"><span>User</span>
+          <input type="text" data-key="mqtt.user">
+        </label>
+        <label class="field"><span>Password</span>
+          <input type="password" data-key="mqtt.password">
+        </label>
+        <label class="field"><span>Base topic</span>
+          <input type="text" data-key="mqtt.base_topic">
+        </label>
+        <label class="field"><span>Single topic for state updates</span>
+          <input type="checkbox" data-key="mqtt.use_single_topic_for_state_update">
+        </label>
+        <label class="field"><span>SSL</span>
+          <input type="checkbox" data-key="mqtt.ssl">
+        </label>
+        <label class="field"><span>Validate certificate</span>
+          <input type="checkbox" data-key="mqtt.certificate.validate">
+        </label>
+        <label class="field"><span>Certificate filename</span>
+          <input type="text" data-key="mqtt.certificate.name" placeholder="certs/&lt;name&gt;">
+        </label>
+        <label class="field"><span>NTP host</span>
+          <input type="text" data-key="mqtt.ntp_host">
+        </label>
+      </div>
     </section>
 
     <section class="card">
       <h2>Logging</h2>
       <label class="field"><span>Enabled</span>
-        <input type="checkbox" data-key="logging.enabled">
+        <input type="checkbox" data-key="logging.enabled" data-toggles="logging-fields">
       </label>
-      <label class="field"><span>Level</span>
-        <select data-key="logging.level">
-          <option value="debug">debug</option>
-          <option value="info">info</option>
-          <option value="warning">warning</option>
-          <option value="error">error</option>
-        </select>
-      </label>
+      <div class="collapsible" id="logging-fields">
+        <label class="field"><span>Level</span>
+          <select data-key="logging.level">
+            <option value="debug">debug</option>
+            <option value="info">info</option>
+            <option value="warning">warning</option>
+            <option value="error">error</option>
+          </select>
+        </label>
+      </div>
     </section>
 
     <section class="card">
       <h2>Button</h2>
-      <label class="field"><span>Pin</span>
-        <input type="number" min="0" data-key="button.pin">
-      </label>
       <label class="field"><span>Enabled</span>
-        <input type="checkbox" data-key="button.enabled">
+        <input type="checkbox" data-key="button.enabled" data-toggles="button-fields">
       </label>
+      <div class="collapsible" id="button-fields">
+        <label class="field"><span>Pin</span>
+          <input type="number" min="0" data-key="button.pin">
+        </label>
+      </div>
     </section>
 
     <section class="card">
       <h2>IR remote</h2>
-      <label class="field"><span>Pin</span>
-        <input type="number" min="0" data-key="ir.pin">
-      </label>
       <label class="field"><span>Enabled</span>
-        <input type="checkbox" data-key="ir.enabled">
+        <input type="checkbox" data-key="ir.enabled" data-toggles="ir-fields">
       </label>
+      <div class="collapsible" id="ir-fields">
+        <label class="field"><span>Pin</span>
+          <input type="number" min="0" data-key="ir.pin">
+        </label>
+      </div>
     </section>
 
     <section class="card">

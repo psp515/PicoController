@@ -103,6 +103,9 @@ if "network" not in sys.modules:
         def ifconfig(self):
             return ("0.0.0.0", "0.0.0.0", "0.0.0.0", "0.0.0.0")
 
+        def scan(self):
+            return []
+
     network_stub.WLAN = _WLANStub
     sys.modules["network"] = network_stub
 

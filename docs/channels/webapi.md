@@ -20,11 +20,22 @@ its setup network) in a browser:
 
 - **`/`** — the dashboard: current mode, brightness, speed, color, on/off,
   which channels (MQTT, button, IR remote) are enabled, and a restart button.
-- **`/config`** — the full configuration, one page split into sections
-  (device, Wi-Fi, LEDs, mode, MQTT, logging, button, IR, watchdog). Changes
-  take effect as soon as you hit Save — most settings apply immediately, a
-  few need a reboot (see the **Applies** column in the
-  [Development guide](../development.md#top-level-keys)).
+- **`/modes`** — settings specific to each lighting mode (e.g. the runner's
+  length, the off-fade duration).
+- **`/config`** — device/network/system configuration, one page split into
+  sections (device, Wi-Fi, LEDs, MQTT, logging, button, IR, Web API,
+  watchdog). Changes take effect as soon as you hit Save — most settings
+  apply immediately, a few need a restart (see the **Applies** column in the
+  [Development guide](../development.md#top-level-keys)) — **Wi-Fi network
+  settings always need a restart**, see [Wi-Fi](wifi.md).
+
+Two sections have their own action button beyond Save:
+
+- **LEDs → Test** lights the strip using whatever count is currently typed
+  in the form, so you can confirm it before saving.
+- **Wi-Fi → Scan for networks** lists nearby networks with signal strength —
+  useful for getting the exact name right, especially while connected to the
+  device's own setup network.
 
 Both pages are just a thin layer over the same JSON API every other
 integration uses (`GET`/`POST /json/state`) — nothing you can do here that
