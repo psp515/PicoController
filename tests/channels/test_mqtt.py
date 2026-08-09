@@ -2,9 +2,28 @@ import asyncio
 import json
 
 import channels.mqtt as mqtt_module
-from channels.mqtt import MqttChannel, MqttTopics
+from channels.mqtt import ExternalWifiMQTTClient, MqttChannel, MqttTopics
 from logger.logger import Logger
 from state import StateManager
+
+
+class FakeStaIf:
+    def __init__(self, connected_results):
+        self._connected_results = list(connected_results)
+        self.calls = []
+
+    def isconnected(self):
+        self.calls.append("isconnected")
+        return self._connected_results.pop(0) if self._connected_results else True
+
+    def connect(self, *args):
+        self.calls.append("connect")
+
+    def disconnect(self):
+        self.calls.append("disconnect")
+
+    def active(self, value=None):
+        self.calls.append("active")
 
 
 class FakeQueue:
@@ -429,6 +448,38 @@ def test_build_client_user_ssl_params_win_over_certificate_defaults(tmp_path, mo
 
     assert client.cfg["ssl_params"]["cert_reqs"] == ssl.CERT_OPTIONAL
     assert client.cfg["ssl_params"]["cadata"] == b"cert bytes"
+
+
+def test_build_client_returns_external_wifi_client():
+    channel, _ = make_channel({"mqtt": {"server": "b"}})
+
+    client = channel._build_client()
+
+    assert isinstance(client, ExternalWifiMQTTClient)
+
+
+def test_external_wifi_client_wifi_connect_waits_without_driving_radio(monkeypatch):
+    monkeypatch.setattr(mqtt_module, "WIFI_POLL_MS", 1)
+    client = ExternalWifiMQTTClient({})
+    client._sta_if = FakeStaIf([False, False, True])
+
+    asyncio.run(client.wifi_connect())
+
+    assert "connect" not in client._sta_if.calls
+    assert "disconnect" not in client._sta_if.calls
+    assert client._sta_if.calls.count("isconnected") == 3
+
+
+def test_external_wifi_client_close_keeps_radio_up():
+    client = ExternalWifiMQTTClient({})
+    client._sta_if = FakeStaIf([True])
+    closed = []
+    client._close = lambda: closed.append(True)
+
+    client.close()
+
+    assert closed == [True]
+    assert client._sta_if.calls == []
 
 
 def test_single_topic_joins_update_and_full():

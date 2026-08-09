@@ -1,4 +1,5 @@
 import sys
+import gc
 
 if "lib" not in sys.path:
     sys.path.append("lib")
@@ -34,6 +35,7 @@ async def heartbeat(state, logger):
         if wdt:
             wdt.feed()
         await asyncio.sleep_ms(HEARTBEAT_MS)
+        logger.debug("heartbeat", "Device free memory: {0}", gc.mem_free())
 
 
 async def main():
