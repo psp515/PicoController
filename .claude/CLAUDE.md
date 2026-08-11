@@ -11,11 +11,17 @@ It is a MicroPython ARGB LED Controller.
   - NEC Reveiver
   - Button on the cover
   - MQTT Protocol
-  - Web API 
+  - Web API + a browser Web UI (dashboard, modes page, full-config page)
+    served by the device itself
+- If the configured Wi-Fi network is empty or unreachable, the device falls
+  back to its own temporary access point (staying up until a restart, no
+  auto-retry) so the Web UI is always reachable to fix credentials — see
+  [Configuration](#configuration) and `docs/channels/wifi.md`
 - Controller Mircopython code should be as simple as possible to understand without complex elements
   - for that aplication might use python abstractions to abtract elements like modes communications and so on
 - Controller should support multiple Animation Modes and animations should be easilly extensible
-- Configuration should be dynamic - device reflects changes after hitting save on webui or after api call 
+- Configuration should be dynamic - device reflects changes after hitting save on webui or after api call,
+  except `wifi.ssid`/`wifi.password` which need a restart (see Configuration)
 - Configuration should be presited between on and off in .json file (also runtime data like current mode and mode specs)
 - if device will be turned off there should be posted message to mqtt broker about last will
 - provide option whether to tunr on led after powering up 
@@ -29,7 +35,6 @@ It is a MicroPython ARGB LED Controller.
 ### Future directions
 
 If introducing helpfull abstraction will not be problematic it is advised to apply this abstraction.
-- Controller might be extended with Web UI
 - in future there will be more like WS2811 LED 12V support
 - introducing more modes 
 
@@ -65,10 +70,20 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   strip or renderer directly. State Manager class manages channels 
 - Communication channels (MQTT, Web API, IR, button) are abstracted behind a common
   interface so new channels can be added without changing core logic. (`src/channels/`)
-- The Wi-Fi channel is the radio's single owner. No other code drives the
-  interface — mqtt uses `ExternalWifiMQTTClient` (subclass in
-  `src/channels/mqtt.py`) so `mqtt_as` never connects/disconnects Wi-Fi itself,
-  it only waits for the radio to be up.
+- The Wi-Fi channel is the radio's single owner — both `STA_IF` and `AP_IF`.
+  No other code drives either interface directly; requests from other
+  channels (e.g. the Web API's scan button) go through shared state, not a
+  direct reference to `WifiChannel` — mqtt uses `ExternalWifiMQTTClient`
+  (subclass in `src/channels/mqtt.py`) so `mqtt_as` never connects/disconnects
+  Wi-Fi itself, it only waits for the radio to be up. The AP is a fallback
+  only, never run concurrently with an active station *connection attempt*
+  (shared single-radio channel constraints) — the one deliberate exception is
+  a Wi-Fi scan, which briefly reactivates the station interface even while
+  the AP is up (needed to pick a network's exact SSID while on the setup
+  network) — see `docs/contributing/channels.md`.
+- The Web API channel keeps JSON API routes (`src/channels/webapi.py`) and
+  static Web UI routes (`src/webui/webui.py`) in separate modules sharing one
+  `Microdot` app/port, so either can change without touching the other.
 - Application should start as quickly as possible and cahnnels should start concurrenctly
 
 ## Selected libraries
@@ -84,18 +99,36 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   (current mode, mode parameters, brightness) so state survives power cycles.
 - for development `config.dev.json` should be used 
 - Changes are dynamic: applying config via Web API or WebUI "save" takes effect
-  immediately, no reboot. This includes `wifi.*` (channel reconnects; reverts
-  to last-known-good credentials if the new ones never connect) and `mqtt.*`
+  immediately, no reboot, for most sections. This includes `mqtt.*`
   (channel tears the session down, publishes `offline` on the old topic, and
-  reconnects with the new config).
+  reconnects with the new config). `wifi.ssid`/`wifi.password` are the
+  exception — see below.
 - Boot-only exceptions: pin assignments (`leds.pin`, `button.pin`, `ir.pin` —
   pin changes imply rewiring, reboot is free), `watchdog.enabled` (RP2040 WDT
-  can't be disarmed once armed), `leds.on_after_boot` (boot-only by nature).
-- Every channel except wifi has an `enabled` flag (`mqtt.enabled`,
-  `webapi.enabled`, `button.enabled`, `ir.enabled`, default true, dynamic):
-  disabled channels skip their work loop and just sleep/wait. Wifi's
-  "disabled" state is an empty `ssid`; a disabled wifi also disables mqtt
-  (mqtt requires non-empty `wifi.ssid`).
+  can't be disarmed once armed), `leds.on_after_boot` (boot-only by nature),
+  `wifi.ssid`/`wifi.password` — read once at boot; saving new values
+  from the Web UI has no live effect, the device must be restarted (restart
+  button or power cycle) to try them. This is deliberate: there's no
+  auto-reconnect/revert machinery to reason about, and the AP fallback below
+  is always the safe way back in if new credentials are wrong — and
+  `webapi.enabled`, for the same reason: it's read once at boot so saving a
+  new value can never immediately cut off the page that just saved it.
+- Every channel except wifi and webapi has an `enabled` flag (`mqtt.enabled`,
+  `button.enabled`, `ir.enabled`, default true, dynamic): disabled channels
+  skip their work loop and just sleep/wait. Wifi's "disabled" state is an
+  empty `ssid`; a disabled wifi also disables mqtt (mqtt requires non-empty
+  `wifi.ssid`). Empty `ssid`, and a configured network the device can't
+  reach after a few tries, both fall back to the same temporary access point
+  (`wifi.ap_ssid`/`wifi.ap_password`) — once up, the AP stays up until the
+  device is restarted, it does not periodically retry the station connection
+  on its own. `webapi.enabled` (boot-only, see above) doesn't mean "off" the
+  same way the other channels' flags do: `false` restricts the Web UI/API to
+  the device's setup AP only — never reachable over the configured Wi-Fi
+  network — while `true` (default) allows both; the server itself is never
+  fully disabled, since the setup AP must always stay reachable. The Web UI
+  can scan for nearby networks (`POST /json/wifi/scan`, mediated through
+  `WifiChannel` since it's the radio's sole owner — see
+  `docs/contributing/channels.md`).
 - Every config key must be documented in the docs config tables — the
   user channel page's "Settings" table and/or the "Top-level keys"
   table in `docs/development.md` — with its default and what it's used for.
@@ -170,7 +203,7 @@ Mirrors `.github/workflows/ci.yml` (lint → build → test), runs on CPython, n
 
 - Lint: `python -m ruff check src main.py`
 - Compile-check (syntax only, all source files): `python -m compileall -q src main.py`
-- Tests: `python -m pytest` (pythonpath is `src`, configured in `pyproject.toml`; tests live in `tests/`)
+- Tests: `python -m pytest` (pythonpath is `src` and `lib`, configured in `pyproject.toml`; tests live in `tests/`)
 - Always invoke tools via `python -m` (`ruff`, `pytest`) — bare executables are not on PATH here.
 
 ## Documentation (GitHub Pages)

@@ -18,10 +18,11 @@ DEFAULTS = {
         "off": {"fade_ms": 600},
         "white": {},
         "static": {},
+        "blink": {},
         "rainbow": {},
         "runner": {"length": 5},
     },
-    "wifi": {"ssid": "", "password": ""},
+    "wifi": {"ssid": "", "password": "", "ap_ssid": "PicoController", "ap_password": "Pico123456!"},
     "webapi": {"enabled": True},
     "mqtt": {
         "enabled": True,

@@ -10,5 +10,5 @@ select = ["E", "F", "W"]
 ignore = ["E501"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "lib"]
 testpaths = ["tests"]

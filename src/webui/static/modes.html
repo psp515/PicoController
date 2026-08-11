@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PicoController - Modes</title>
+<link rel="icon" type="image/svg+xml" href="/icons/logo.svg">
+<link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="icon" data-icon="logo" aria-hidden="true"></span>
+    <div class="titles">
+      <a class="site-name" href="/">PicoController</a>
+    </div>
+  </div>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+    <span class="icon" data-icon="menu" aria-hidden="true"></span>
+  </button>
+  <nav class="main-nav" id="main-nav">
+    <a href="/">Dashboard</a>
+    <a class="active" href="/modes">Modes</a>
+    <a href="/config">Configuration</a>
+  </nav>
+</header>
+
+<main class="has-save-fab">
+  <nav class="breadcrumb">
+    <a href="/">PicoController</a><span>/</span><span>Modes</span>
+  </nav>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <form id="modes-form">
+    <section class="card">
+      <h2>Off</h2>
+      <label class="field"><span>Fade duration (ms)</span>
+        <input type="number" min="0" data-key="modes.off.fade_ms">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>White</h2>
+      <p class="no-settings">No settings for this mode.</p>
+    </section>
+
+    <section class="card">
+      <h2>Static color</h2>
+      <p class="no-settings">No settings for this mode &mdash; color is set on the Dashboard.</p>
+    </section>
+
+    <section class="card">
+      <h2>Blink</h2>
+      <p class="no-settings">No settings for this mode &mdash; color and speed are set on the Dashboard.</p>
+    </section>
+
+    <section class="card">
+      <h2>Rainbow</h2>
+      <p class="no-settings">No settings for this mode.</p>
+    </section>
+
+    <section class="card">
+      <h2>Runner</h2>
+      <label class="field"><span>Length</span>
+        <input type="number" min="1" data-key="modes.runner.length">
+      </label>
+    </section>
+
+    <button type="submit" class="primary save-fab">
+      <span class="btn-icon" data-icon="save" aria-hidden="true"></span>
+      <span class="btn-label">Save</span>
+    </button>
+  </form>
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

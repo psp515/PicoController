@@ -132,9 +132,13 @@ By default MQTT is unencrypted. Two settings tighten this:
 
 - **`mqtt.ssl: true`** encrypts the connection (TLS).
 - **`mqtt.certificate.validate: true`** additionally checks that the broker is
-  who it claims to be, using a CA certificate you place at
+  who it claims to be, using a CA certificate stored at
   `certs/<mqtt.certificate.name>` on the device. This protects against someone
-  impersonating your broker.
+  impersonating your broker. Upload the certificate from the MQTT → Certificate
+  section of `/config` (**Upload certificate**) — it's saved
+  under its filename, which then appears in the **Certificate name** dropdown
+  next to the other certificates already on the device; no manual file
+  transfer needed.
 
 When certificate checking is on but the certificate is missing or unreadable,
 the device refuses to connect rather than falling back to an unverified

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PicoController - Configuration</title>
+<link rel="icon" type="image/svg+xml" href="/icons/logo.svg">
+<link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="icon" data-icon="logo" aria-hidden="true"></span>
+    <div class="titles">
+      <a class="site-name" href="/">PicoController</a>
+    </div>
+  </div>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+    <span class="icon" data-icon="menu" aria-hidden="true"></span>
+  </button>
+  <nav class="main-nav" id="main-nav">
+    <a href="/">Dashboard</a>
+    <a href="/modes">Modes</a>
+    <a class="active" href="/config">Configuration</a>
+  </nav>
+</header>
+
+<main class="has-save-fab">
+  <nav class="breadcrumb">
+    <a href="/">PicoController</a><span>/</span><span>Configuration</span>
+  </nav>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <form id="config-form">
+    <div class="section-group">
+      <h2 class="section-heading">Default</h2>
+
+      <section class="card">
+        <h2>Device</h2>
+        <label class="field"><span>Name</span>
+          <input type="text" data-key="device.name">
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>Wi-Fi</h2>
+        <div class="subsection">
+          <h3>Access point</h3>
+          <label class="field"><span>Name</span>
+            <input type="text" data-key="wifi.ap_ssid" placeholder="&lt;device name&gt;-setup">
+          </label>
+          <label class="field"><span>Password</span>
+            <input type="password" data-key="wifi.ap_password" placeholder="open (no password)">
+          </label>
+        </div>
+        <div class="subsection">
+          <h3>Network</h3>
+          <label class="field"><span>Network name (SSID)</span>
+            <input type="text" data-key="wifi.ssid" list="wifi-ssid-options" autocomplete="off">
+          </label>
+          <datalist id="wifi-ssid-options"></datalist>
+          <label class="field"><span>Password</span>
+            <input type="password" data-key="wifi.password">
+          </label>
+          <div class="action-row">
+            <button type="button" id="wifi-scan-btn" class="secondary">
+              <span class="btn-icon" data-icon="wifi" aria-hidden="true"></span>
+              <span class="btn-label">Scan for networks</span>
+            </button>
+          </div>
+          <p class="hint">Scanning fills in suggestions for the network name above. Changes to the network name/password only take effect after a restart.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>LEDs</h2>
+        <label class="field"><span>Count</span>
+          <input type="number" min="1" id="leds-count-input" data-key="leds.count">
+        </label>
+        <label class="field"><span>Data pin</span>
+          <input type="number" min="0" data-key="leds.pin">
+        </label>
+        <label class="field"><span>On after boot</span>
+          <input type="checkbox" data-key="leds.on_after_boot">
+        </label>
+        <label class="field"><span>Segmenting enabled</span>
+          <input type="checkbox" data-key="leds.segmenting.enabled">
+        </label>
+        <label class="field"><span>Segment length</span>
+          <input type="number" min="2" data-key="leds.segmenting.length">
+        </label>
+        <div class="action-row">
+          <button type="button" id="leds-test-btn" class="secondary">
+            <span class="btn-icon" data-icon="flash" aria-hidden="true"></span>
+            <span class="btn-label">Test Strip Length</span>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div class="section-group">
+      <h2 class="section-heading">Channels</h2>
+
+      <section class="card">
+        <h2>MQTT</h2>
+        <label class="field"><span>Enabled</span>
+          <input type="checkbox" data-key="mqtt.enabled" data-toggles="mqtt-fields">
+        </label>
+        <div class="collapsible" id="mqtt-fields">
+          <label class="field"><span>Server</span>
+            <input type="text" data-key="mqtt.server">
+          </label>
+          <label class="field"><span>Port</span>
+            <input type="number" min="1" max="65535" data-key="mqtt.port">
+          </label>
+          <label class="field"><span>User</span>
+            <input type="text" data-key="mqtt.user">
+          </label>
+          <label class="field"><span>Password</span>
+            <input type="password" data-key="mqtt.password">
+          </label>
+          <div class="subsection">
+            <h3>Topics</h3>
+            <label class="field"><span>Base topic</span>
+              <input type="text" data-key="mqtt.base_topic">
+            </label>
+            <label class="field"><span>Single topic for state updates</span>
+              <input type="checkbox" data-key="mqtt.use_single_topic_for_state_update">
+            </label>
+          </div>
+
+          <div class="subsection">
+            <h3>SSL</h3>
+            <label class="field"><span>Enabled</span>
+              <input type="checkbox" data-key="mqtt.ssl" data-toggles="mqtt-ssl-fields">
+            </label>
+            <div class="collapsible" id="mqtt-ssl-fields">
+              <label class="field"><span>NTP host</span>
+                <input type="text" data-key="mqtt.ntp_host">
+              </label>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Certificate</h3>
+            <label class="field"><span>Validate certificate</span>
+              <input type="checkbox" data-key="mqtt.certificate.validate" data-toggles="mqtt-cert-fields">
+            </label>
+            <div class="collapsible" id="mqtt-cert-fields">
+              <label class="field"><span>Certificate name</span>
+                <select id="mqtt-cert-select" data-key="mqtt.certificate.name">
+                  <option value="">-- none --</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button type="button" id="mqtt-cert-upload-btn" class="secondary">
+              <span class="btn-icon" data-icon="upload" aria-hidden="true"></span>
+              <span class="btn-label">Upload certificate</span>
+            </button>
+            <input type="file" id="mqtt-cert-file-input" hidden>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Button</h2>
+        <label class="field"><span>Enabled</span>
+          <input type="checkbox" data-key="button.enabled" data-toggles="button-fields">
+        </label>
+        <div class="collapsible" id="button-fields">
+          <label class="field"><span>Pin</span>
+            <input type="number" min="0" data-key="button.pin">
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>IR remote</h2>
+        <label class="field"><span>Enabled</span>
+          <input type="checkbox" data-key="ir.enabled" data-toggles="ir-fields">
+        </label>
+        <div class="collapsible" id="ir-fields">
+          <label class="field"><span>Pin</span>
+            <input type="number" min="0" data-key="ir.pin">
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Web API</h2>
+        <label class="field"><span>Enabled (restart required)</span>
+          <input type="checkbox" data-key="webapi.enabled">
+        </label>
+        <p class="hint">Unchecking this restricts the dashboard/API to the device's own setup AP only — not reachable over your Wi-Fi network. Takes effect after a restart.</p>
+      </section>
+    </div>
+
+    <div class="section-group">
+      <h2 class="section-heading">Others</h2>
+
+      <section class="card">
+        <h2>Logging</h2>
+        <label class="field"><span>Enabled</span>
+          <input type="checkbox" data-key="logging.enabled" data-toggles="logging-fields">
+        </label>
+        <div class="collapsible" id="logging-fields">
+          <label class="field"><span>Level</span>
+            <select data-key="logging.level">
+              <option value="debug">debug</option>
+              <option value="info">info</option>
+              <option value="warning">warning</option>
+              <option value="error">error</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Watchdog</h2>
+        <label class="field"><span>Enabled (reboot required)</span>
+          <input type="checkbox" data-key="watchdog.enabled">
+        </label>
+      </section>
+    </div>
+
+    <button type="submit" class="primary save-fab">
+      <span class="btn-icon" data-icon="save" aria-hidden="true"></span>
+      <span class="btn-label">Save</span>
+    </button>
+  </form>
+
+  <div class="section-group">
+    <h2 class="section-heading">Device control</h2>
+    <section>
+      <button id="restart-btn" class="danger">
+        <span class="btn-icon" data-icon="restart" aria-hidden="true"></span>
+        <span class="btn-label">Restart device</span>
+      </button>
+    </section>
+  </div>
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

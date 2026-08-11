@@ -11,8 +11,9 @@ How lighting modes are implemented and rendered, and how to add a new one. For
 what each mode looks like and the user-facing controls, see
 [Animations](../animations/index.md).
 
-An **animation** is one lighting mode — `off`, `white`, `static`, `rainbow`,
-`runner`. The `Renderer` (`src/renderer.py`) owns a single `uasyncio` loop that
+An **animation** is one lighting mode — `off`, `white`, `static`, `blink`,
+`rainbow`, `runner`. The `Renderer` (`src/renderer.py`) owns a single
+`uasyncio` loop that
 picks the active animation, calls its `render()` once per frame, and writes the
 result to the NeoPixel strip. Modes never touch `neopixel`/hardware themselves;
 each mode is responsible for applying brightness itself (see `apply_brightness`
@@ -51,7 +52,8 @@ class Animation:
 - `mode` — the shared `Mode` helper (`src/state.py`), giving read access to
   `mode.current` / `mode.brightness` / `mode.speed` / `mode.on` / `mode.color`
   / `mode.direction`. `mode.color` is the single global `[r, g, b]` used by
-  every color-driven mode (`static`, `runner`) — it is *not* a per-mode param.
+  every color-driven mode (`static`, `blink`, `runner`) — it is *not* a
+  per-mode param.
 - `params` — this mode's own config dict, e.g. `{"length": 5}` for `runner`,
   read from `modes.<name>` in the config.
 - `render(buffer, count, frame)` — called every frame; must write `count`
@@ -91,12 +93,13 @@ Registered in `src/animations/registry.py`:
 | `off` | `off.py` | `fade_ms` (default `600`) | No | **No** | Fades whatever was last displayed down to black over `fade_ms`, using an eased (quadratic) curve, then holds all pixels off. Entered whenever `mode.on` is `False` or an unknown mode is selected. |
 | `white` | `white.py` | — | No | Yes (startup only) | `Static` subclass with the color pinned to white (`mode.color` ignored); same wipe-in startup |
 | `static` | `static.py` | — | No | Yes (startup only) | Solid `mode.color`; starts with a gradient wipe-in, LED by LED from one end (see [Startup wipe](#startup-wipe)), then settles at `interval_ms=500` |
+| `blink` | `blink.py` | — | No | No | Flashes `mode.color` fully on, then fully off, alternating every `interval_ms`; `mode.speed` sets the half-period between `BLINK_MIN_MS` (100) and `BLINK_MAX_MS` (600) |
 | `rainbow` | `rainbow.py` | — | **Yes** | Yes | Precomputes a 256-step color wheel once; wipes the first rainbow frame in on startup, then scrolls it using `mode.speed` |
 | `runner` | `runner.py` | `length` | No | Yes | Trail of `length` pixels in `mode.color` chasing around the strip, brightest in the middle and fading to black at both ends; enters cleanly from the start of the strip. Renders at a fixed 30 ms frame rate with a sub-pixel (fixed-point) head position; `mode.speed` sets travel speed in LEDs/second |
 
-`off`/`white`/`static` opt out of segmenting because segmenting a solid fill
-produces the exact same output as rendering it across the whole strip. `runner`
-opts out because its trail is meant to travel the full strip.
+`off`/`white`/`static`/`blink` opt out of segmenting because segmenting a solid
+fill produces the exact same output as rendering it across the whole strip.
+`runner` opts out because its trail is meant to travel the full strip.
 
 ## Brightness and speed
 
@@ -113,6 +116,7 @@ Both are global `mode` fields, shared by all modes, and both are clamped to
 |---|---|---|
 | `runner` | LEDs per second | `10` ≈ 14 s per lap of a 144-LED strip; `100` sweeps it in ~1.4 s |
 | `rainbow` | color-wheel steps (of 256) per 40 ms frame | `10` ≈ one full color cycle per second; `100` ≈ 10 cycles/s |
+| `blink` | inverse half-period, `interval_ms = max(100, 600 - speed * 5)` | `10` ≈ 0.9 Hz; `100` ≈ 5 Hz (floored at the 100 ms minimum) |
 | `off`, `white`, `static` | unused | — |
 
 Changing either field rebuilds the animation instance without resetting
@@ -150,6 +154,7 @@ is `"backward"`, the renderer mirrors the final pixel buffer in place
 - `runner` / `rainbow` — fully direction-aware.
 - `static` / `white` — direction only matters during the startup wipe; the
   steady solid fill looks identical either way.
+- `blink` — no wipe and a uniform fill, so direction never changes anything.
 - `off` — **not compatible**, the renderer skips the mirror: its fade works
   from a snapshot of what was last *displayed* (already mirrored), so reversing
   again would flip the image mid-fade.

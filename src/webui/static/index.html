@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PicoController</title>
+<link rel="icon" type="image/svg+xml" href="/icons/logo.svg">
+<link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="icon" data-icon="logo" aria-hidden="true"></span>
+    <div class="titles">
+      <a class="site-name" href="/">PicoController</a>
+    </div>
+  </div>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+    <span class="icon" data-icon="menu" aria-hidden="true"></span>
+  </button>
+  <nav class="main-nav" id="main-nav">
+    <a class="active" href="/">Dashboard</a>
+    <a href="/modes">Modes</a>
+    <a href="/config">Configuration</a>
+  </nav>
+</header>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+
+  <section class="card">
+    <h2>Mode</h2>
+    <label class="field">
+      <span>On</span>
+      <input type="checkbox" id="mode-on">
+    </label>
+    <label class="field">
+      <span>Current mode</span>
+      <select id="mode-current"></select>
+    </label>
+    <label class="field">
+      <span>Brightness <output id="brightness-value"></output></span>
+      <input type="range" id="mode-brightness" min="1" max="100">
+    </label>
+    <label class="field">
+      <span>Speed <output id="speed-value"></output></span>
+      <input type="range" id="mode-speed" min="1" max="100">
+    </label>
+    <label class="field">
+      <span>Color</span>
+      <input type="color" id="mode-color">
+    </label>
+    <label class="field">
+      <span>Direction</span>
+      <select id="mode-direction">
+        <option value="forward">Forward</option>
+        <option value="backward">Backward</option>
+      </select>
+    </label>
+  </section>
+
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
