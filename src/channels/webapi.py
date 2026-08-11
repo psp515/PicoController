@@ -1,15 +1,18 @@
 import asyncio
 import json
+import os
 
 import machine
 from microdot import Microdot
 
 from channels.base import Channel
+from channels.mqtt import CERTS_DIR
 from webui.webui import register_ui_routes
 
 WIFI_POLL_MS = 500
 PORT = 80
 RESTART_DELAY_MS = 300
+CERT_MAX_BYTES = 16 * 1024
 
 
 class WebApiChannel(Channel):
@@ -18,13 +21,10 @@ class WebApiChannel(Channel):
     def __init__(self, state, logger):
         super().__init__(state, logger)
         self._running = False
+        self._lan_access = True
         self._app = Microdot()
-        self._config_changed = asyncio.Event()
         self._routes()
         register_ui_routes(self._app)
-
-    def _enabled(self):
-        return self.state.get("webapi", "enabled", default=True)
 
     def _network_available(self):
         return bool(
@@ -32,18 +32,10 @@ class WebApiChannel(Channel):
             or self.state.get("runtime", "wifi", "ap_active")
         )
 
-    def _on_change(self, patch):
-        self._shutdown_server_if_webapi_disabled(patch)
-
-    def _shutdown_server_if_webapi_disabled(self, patch):
-        if "webapi" not in patch:
-            return
-        self._config_changed.set()
-        if not self._enabled():
-            self._app.shutdown()
-
-    async def _wait_for_webapi_config_change(self):
-        await self._config_changed.wait()
+    def _access_allowed(self):
+        if self._lan_access:
+            return self._network_available()
+        return bool(self.state.get("runtime", "wifi", "ap_active"))
 
     async def _delayed_restart(self):
         await asyncio.sleep_ms(RESTART_DELAY_MS)
@@ -53,6 +45,34 @@ class WebApiChannel(Channel):
         self.logger.warning("webapi", "restart requested")
         asyncio.create_task(self._delayed_restart())
         return {"ok": True}
+
+    async def _handle_certificate_upload(self, request):
+        name = request.args.get("name", "")
+        if not name or "/" in name or "\\" in name:
+            return {"error": "invalid filename"}, 400
+        body = request.body
+        if not body:
+            return {"error": "empty file"}, 400
+        if len(body) > CERT_MAX_BYTES:
+            return {"error": "file too large"}, 400
+        try:
+            os.stat(CERTS_DIR)
+        except OSError:
+            os.mkdir(CERTS_DIR)
+        tmp = CERTS_DIR + "/." + name + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(body)
+        os.rename(tmp, CERTS_DIR + "/" + name)
+        self.state.update({"mqtt": {"certificate": {"name": name}}})
+        self.logger.info("webapi", "certificate {0} uploaded", name)
+        return {"ok": True, "name": name}
+
+    async def _handle_certificate_list(self, request):
+        try:
+            names = [n for n in os.listdir(CERTS_DIR) if not n.startswith(".")]
+        except OSError:
+            names = []
+        return {"files": sorted(names)}
 
     def _routes(self):
         app = self._app
@@ -89,25 +109,27 @@ class WebApiChannel(Channel):
             state.update({"runtime": {"wifi": {"scan_requested": True}}})
             return {"ok": True}
 
+        @app.post("/json/mqtt/certificate")
+        async def mqtt_certificate_upload(request):
+            return await self._handle_certificate_upload(request)
+
+        @app.get("/json/mqtt/certificates")
+        async def mqtt_certificate_list(request):
+            return await self._handle_certificate_list(request)
+
     async def start(self):
         self._running = True
-        self.state.subscribe(self._on_change)
+        self._lan_access = self.state.get("webapi", "enabled", default=True)
         while self._running:
-            self._config_changed.clear()
-            if not self._enabled():
-                self.logger.info("webapi", "disabled, waiting for config change")
-                await self._wait_for_webapi_config_change()
-                continue
-            while self._running and self._enabled() and not self._network_available():
+            while self._running and not self._access_allowed():
                 await asyncio.sleep_ms(WIFI_POLL_MS)
-            if not self._running or not self._enabled():
-                continue
+            if not self._running:
+                break
             self.logger.info("webapi", "listening on port {0}", PORT)
             await self._app.start_server(port=PORT)
             self.logger.info("webapi", "server stopped")
 
     async def stop(self):
         self._running = False
-        self._config_changed.set()
         self._app.shutdown()
         self.logger.info("webapi", "stopped")

@@ -106,23 +106,29 @@ If introducing helpfull abstraction will not be problematic it is advised to app
 - Boot-only exceptions: pin assignments (`leds.pin`, `button.pin`, `ir.pin` —
   pin changes imply rewiring, reboot is free), `watchdog.enabled` (RP2040 WDT
   can't be disarmed once armed), `leds.on_after_boot` (boot-only by nature),
-  and `wifi.ssid`/`wifi.password` — read once at boot; saving new values
+  `wifi.ssid`/`wifi.password` — read once at boot; saving new values
   from the Web UI has no live effect, the device must be restarted (restart
   button or power cycle) to try them. This is deliberate: there's no
   auto-reconnect/revert machinery to reason about, and the AP fallback below
-  is always the safe way back in if new credentials are wrong.
-- Every channel except wifi has an `enabled` flag (`mqtt.enabled`,
-  `webapi.enabled`, `button.enabled`, `ir.enabled`, default true, dynamic):
-  disabled channels skip their work loop and just sleep/wait. Wifi's
-  "disabled" state is an empty `ssid`; a disabled wifi also disables mqtt
-  (mqtt requires non-empty `wifi.ssid`). Empty `ssid`, and a configured
-  network the device can't reach after a few tries, both fall back to the
-  same temporary access point (`wifi.ap_ssid`/`wifi.ap_password`) — once up,
-  the AP stays up until the device is restarted, it does not periodically
-  retry the station connection on its own. The Web UI stays reachable either
-  way (station or AP), and can scan for nearby networks
-  (`POST /json/wifi/scan`, mediated through `WifiChannel` since it's the
-  radio's sole owner — see `docs/contributing/channels.md`).
+  is always the safe way back in if new credentials are wrong — and
+  `webapi.enabled`, for the same reason: it's read once at boot so saving a
+  new value can never immediately cut off the page that just saved it.
+- Every channel except wifi and webapi has an `enabled` flag (`mqtt.enabled`,
+  `button.enabled`, `ir.enabled`, default true, dynamic): disabled channels
+  skip their work loop and just sleep/wait. Wifi's "disabled" state is an
+  empty `ssid`; a disabled wifi also disables mqtt (mqtt requires non-empty
+  `wifi.ssid`). Empty `ssid`, and a configured network the device can't
+  reach after a few tries, both fall back to the same temporary access point
+  (`wifi.ap_ssid`/`wifi.ap_password`) — once up, the AP stays up until the
+  device is restarted, it does not periodically retry the station connection
+  on its own. `webapi.enabled` (boot-only, see above) doesn't mean "off" the
+  same way the other channels' flags do: `false` restricts the Web UI/API to
+  the device's setup AP only — never reachable over the configured Wi-Fi
+  network — while `true` (default) allows both; the server itself is never
+  fully disabled, since the setup AP must always stay reachable. The Web UI
+  can scan for nearby networks (`POST /json/wifi/scan`, mediated through
+  `WifiChannel` since it's the radio's sole owner — see
+  `docs/contributing/channels.md`).
 - Every config key must be documented in the docs config tables — the
   user channel page's "Settings" table and/or the "Top-level keys"
   table in `docs/development.md` — with its default and what it's used for.

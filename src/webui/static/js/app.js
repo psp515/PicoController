@@ -54,6 +54,26 @@ function showBanner(text) {
 
 const debouncedPatch = debounce(postPatch, 300);
 
+const iconCache = new Map();
+
+function loadIcon(name) {
+  if (!iconCache.has(name)) {
+    iconCache.set(
+      name,
+      fetch("/icons/" + name + ".svg").then((r) => r.text())
+    );
+  }
+  return iconCache.get(name);
+}
+
+function initIcons() {
+  document.querySelectorAll("[data-icon]").forEach((slot) => {
+    loadIcon(slot.dataset.icon).then((svg) => {
+      slot.innerHTML = svg;
+    });
+  });
+}
+
 function initNav() {
   const toggle = document.getElementById("menu-toggle");
   const nav = document.getElementById("main-nav");
@@ -115,21 +135,12 @@ function initDashboard(state) {
   direction.addEventListener("change", () => {
     postPatch({ mode: { direction: direction.value } });
   });
+}
 
-  const channelToggles = [
-    ["mqtt-enabled", "mqtt", "enabled"],
-    ["button-enabled", "button", "enabled"],
-    ["ir-enabled", "ir", "enabled"],
-  ];
-  channelToggles.forEach(([id, section, key]) => {
-    const el = document.getElementById(id);
-    el.checked = state[section][key];
-    el.addEventListener("change", () => {
-      postPatch({ [section]: { [key]: el.checked } });
-    });
-  });
-
-  document.getElementById("restart-btn").addEventListener("click", () => {
+function initRestartButton() {
+  const button = document.getElementById("restart-btn");
+  if (!button) return;
+  button.addEventListener("click", () => {
     if (!confirm("Restart the device now?")) return;
     fetch("/json/restart", { method: "POST" }).then(() => {
       showBanner("Restarting...");
@@ -199,34 +210,96 @@ function initLedTest() {
   });
 }
 
-function renderScanResults(results) {
-  const list = document.getElementById("wifi-scan-results");
-  if (!list) return;
-  list.innerHTML = "";
-  if (!results.length) {
-    const li = document.createElement("li");
-    li.textContent = "No networks found";
-    list.appendChild(li);
-    return;
+function setButtonLabel(button, text) {
+  const label = button.querySelector(".btn-label");
+  if (label) {
+    label.textContent = text;
+  } else {
+    button.textContent = text;
   }
+}
+
+function renderScanResults(results) {
+  const datalist = document.getElementById("wifi-ssid-options");
+  if (!datalist) return;
+  datalist.innerHTML = "";
   results
     .slice()
     .sort((a, b) => b.rssi - a.rssi)
     .forEach((net) => {
-      const li = document.createElement("li");
-      const name = document.createElement("span");
-      name.textContent = net.ssid + (net.open ? "" : " (secured)");
-      const signal = document.createElement("span");
-      signal.className = "signal";
-      signal.textContent = net.rssi + " dBm";
-      li.appendChild(name);
-      li.appendChild(signal);
-      li.addEventListener("click", () => {
-        const ssidField = document.querySelector('[data-key="wifi.ssid"]');
-        if (ssidField) ssidField.value = net.ssid;
-      });
-      list.appendChild(li);
+      const option = document.createElement("option");
+      option.value = net.ssid;
+      option.label = net.rssi + " dBm" + (net.open ? "" : " (secured)");
+      datalist.appendChild(option);
     });
+}
+
+function populateCertSelect(select, files, selected) {
+  select.innerHTML = "";
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "-- none --";
+  select.appendChild(none);
+  const names = selected && !files.includes(selected) ? [...files, selected] : files;
+  names.forEach((name) => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+  select.value = selected || "";
+}
+
+function fetchCertList() {
+  return fetch("/json/mqtt/certificates")
+    .then((r) => r.json())
+    .then((data) => data.files || []);
+}
+
+function initMqttCertSelect(state) {
+  const select = document.getElementById("mqtt-cert-select");
+  if (!select) return;
+  const current = getPath(state, "mqtt.certificate.name") || "";
+  fetchCertList().then((files) => populateCertSelect(select, files, current));
+}
+
+function initMqttCertUpload() {
+  const button = document.getElementById("mqtt-cert-upload-btn");
+  const fileInput = document.getElementById("mqtt-cert-file-input");
+  const select = document.getElementById("mqtt-cert-select");
+  if (!button || !fileInput) return;
+  button.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    fileInput.value = "";
+    if (!file) return;
+    button.disabled = true;
+    setButtonLabel(button, "Uploading...");
+    file
+      .arrayBuffer()
+      .then((buffer) =>
+        fetch("/json/mqtt/certificate?name=" + encodeURIComponent(file.name), {
+          method: "POST",
+          headers: { "Content-Type": "application/octet-stream" },
+          body: buffer,
+        })
+      )
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.error) {
+          showBanner("Upload failed: " + result.error);
+          return;
+        }
+        showBanner("Certificate uploaded");
+        if (select) {
+          fetchCertList().then((files) => populateCertSelect(select, files, result.name));
+        }
+      })
+      .finally(() => {
+        button.disabled = false;
+        setButtonLabel(button, "Upload certificate");
+      });
+  });
 }
 
 function initWifiScan() {
@@ -234,7 +307,7 @@ function initWifiScan() {
   if (!button) return;
   button.addEventListener("click", () => {
     button.disabled = true;
-    button.textContent = "Scanning...";
+    setButtonLabel(button, "Scanning...");
     fetch("/json/wifi/scan", { method: "POST" }).then(() => {
       let attempts = 0;
       const poll = () => {
@@ -243,7 +316,7 @@ function initWifiScan() {
           const wifi = state.runtime && state.runtime.wifi ? state.runtime.wifi : {};
           if (!wifi.scan_requested || attempts >= 10) {
             button.disabled = false;
-            button.textContent = "Scan for networks";
+            setButtonLabel(button, "Scan for networks");
             renderScanResults(wifi.scan_results || []);
           } else {
             setTimeout(poll, 700);
@@ -257,6 +330,7 @@ function initWifiScan() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initNav();
+  initIcons();
   fetchState().then((state) => {
     if (document.getElementById("mode-current")) {
       initDashboard(state);
@@ -265,5 +339,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initFormPage("modes-form", state);
     initLedTest();
     initWifiScan();
+    initMqttCertSelect(state);
+    initMqttCertUpload();
+    initRestartButton();
   });
 });

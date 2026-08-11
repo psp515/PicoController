@@ -44,10 +44,10 @@ Connect a phone or laptop to that network, then open the device's
 [Web UI](webapi.md) in a browser at `http://192.168.4.1/` to fix your Wi-Fi
 settings, and restart the device to try them.
 
-Not sure of your network's exact name? The Wi-Fi section of the
-[Configuration page](webapi.md) has a **Scan for networks** button that
-lists nearby networks with their signal strength — handy while connected to
-the setup network.
+Not sure of your network's exact name? The Wi-Fi → Network section of the
+[Configuration page](webapi.md) has a **Scan for networks** button; nearby
+networks (with signal strength) then show up as suggestions on the Network
+name field — handy while connected to the setup network.
 
 ## Good to know
 

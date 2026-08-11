@@ -4,30 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PicoController</title>
-<link rel="stylesheet" href="/style.css">
+<link rel="icon" type="image/svg+xml" href="/icons/logo.svg">
+<link rel="stylesheet" href="/styles/style.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <!-- icon placeholder, swap for a real logo later -->
-    <span class="icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
-        <circle cx="12" cy="10" r="6"></circle>
-        <line x1="9" y1="20" x2="15" y2="20"></line>
-        <line x1="10" y1="17" x2="14" y2="17"></line>
-      </svg>
-    </span>
+    <span class="icon" data-icon="logo" aria-hidden="true"></span>
     <div class="titles">
       <a class="site-name" href="/">PicoController</a>
     </div>
   </div>
   <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
-    <!-- icon placeholder -->
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <line x1="3" y1="12" x2="21" y2="12"></line>
-      <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
+    <span class="icon" data-icon="menu" aria-hidden="true"></span>
   </button>
   <nav class="main-nav" id="main-nav">
     <a class="active" href="/">Dashboard</a>
@@ -70,28 +59,8 @@
     </label>
   </section>
 
-  <section class="card">
-    <h2>Channels</h2>
-    <label class="field">
-      <span>MQTT</span>
-      <input type="checkbox" id="mqtt-enabled">
-    </label>
-    <label class="field">
-      <span>Button</span>
-      <input type="checkbox" id="button-enabled">
-    </label>
-    <label class="field">
-      <span>IR remote</span>
-      <input type="checkbox" id="ir-enabled">
-    </label>
-  </section>
-
-  <section class="card">
-    <h2>Device</h2>
-    <button id="restart-btn" class="danger">Restart device</button>
-  </section>
 </main>
 
-<script src="/app.js"></script>
+<script src="/js/app.js"></script>
 </body>
 </html>

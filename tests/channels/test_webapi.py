@@ -1,6 +1,7 @@
 import asyncio
 
 import channels.webapi as webapi_module
+import webui.webui as webui_module
 from channels.webapi import WebApiChannel
 from logger.logger import Logger
 from state import StateManager
@@ -76,6 +77,42 @@ def test_starts_when_only_ap_active(monkeypatch):
     asyncio.run(run_scenario({}, body))
 
 
+def test_ap_only_blocks_start_when_connected_via_station(monkeypatch):
+    patch_timings(monkeypatch)
+
+    async def body(channel, state):
+        state.update({"runtime": {"wifi": {"connected": True}}})
+        await asyncio.sleep(0.05)
+        assert channel._app.start_calls == []
+
+    asyncio.run(run_scenario({"webapi": {"enabled": False}}, body))
+
+
+def test_ap_only_allows_start_when_ap_active(monkeypatch):
+    patch_timings(monkeypatch)
+
+    async def body(channel, state):
+        state.update({"runtime": {"wifi": {"ap_active": True}}})
+        await asyncio.sleep(0.05)
+        assert channel._app.start_calls == [80]
+
+    asyncio.run(run_scenario({"webapi": {"enabled": False}}, body))
+
+
+def test_enabled_is_boot_only(monkeypatch):
+    patch_timings(monkeypatch)
+
+    async def body(channel, state):
+        state.update({"runtime": {"wifi": {"connected": True}}})
+        await asyncio.sleep(0.05)
+        assert len(channel._app.start_calls) == 1
+        state.update({"webapi": {"enabled": False}})
+        await asyncio.sleep(0.05)
+        assert not channel._app._shutdown.is_set()
+
+    asyncio.run(run_scenario({}, body))
+
+
 def test_restart_endpoint_responds_ok_and_schedules_reset(monkeypatch):
     monkeypatch.setattr(webapi_module, "RESTART_DELAY_MS", 5)
     calls = []
@@ -112,14 +149,45 @@ def test_static_routes_serve_files():
             ("/", "text/html"),
             ("/modes", "text/html"),
             ("/config", "text/html"),
-            ("/style.css", "text/css"),
-            ("/app.js", "application/javascript"),
+            ("/styles/style.css", "text/css"),
+            ("/js/app.js", "application/javascript"),
         ]:
             req = FakeRequest("GET", path)
             handler, _prefix, _subapp = channel._app.find_route(req)
             response = await handler(req)
             assert response.status_code == 200
             assert response.headers["Content-Type"].startswith(content_type)
+
+    asyncio.run(scenario())
+
+
+def test_icon_routes_serve_known_icons():
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        for name in webui_module.ICONS:
+            req = FakeRequest("GET", "/icons/" + name)
+            handler, _prefix, _subapp = channel._app.find_route(req)
+            response = await handler(req, **req.url_args)
+            assert response.status_code == 200
+            assert response.headers["Content-Type"] == "image/svg+xml"
+
+    asyncio.run(scenario())
+
+
+def test_icon_route_rejects_unknown_icon():
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        req = FakeRequest("GET", "/icons/not-an-icon.svg")
+        handler, _prefix, _subapp = channel._app.find_route(req)
+        result = await handler(req, **req.url_args)
+
+        assert result == ({"error": "not found"}, 404)
 
     asyncio.run(scenario())
 
@@ -140,15 +208,113 @@ def test_wifi_scan_endpoint_sets_request_flag():
     asyncio.run(scenario())
 
 
-def test_stops_when_disabled_toggle(monkeypatch):
-    patch_timings(monkeypatch)
+class FakeUploadRequest:
+    def __init__(self, name, body):
+        self.args = {"name": name}
+        self.body = body
 
-    async def body(channel, state):
-        state.update({"runtime": {"wifi": {"connected": True}}})
-        await asyncio.sleep(0.05)
-        assert len(channel._app.start_calls) == 1
-        state.update({"webapi": {"enabled": False}})
-        await asyncio.sleep(0.05)
-        assert channel._app._shutdown.is_set()
 
-    asyncio.run(run_scenario({}, body))
+def test_certificate_upload_writes_file_and_updates_state(tmp_path, monkeypatch):
+    monkeypatch.setattr(webapi_module, "CERTS_DIR", str(tmp_path))
+
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        result = await channel._handle_certificate_upload(
+            FakeUploadRequest("ca.pem", b"cert bytes")
+        )
+
+        assert result == {"ok": True, "name": "ca.pem"}
+        assert (tmp_path / "ca.pem").read_bytes() == b"cert bytes"
+        assert state.get("mqtt", "certificate", "name") == "ca.pem"
+
+    asyncio.run(scenario())
+
+
+def test_certificate_upload_rejects_path_separator_in_name(tmp_path, monkeypatch):
+    monkeypatch.setattr(webapi_module, "CERTS_DIR", str(tmp_path))
+
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        result = await channel._handle_certificate_upload(
+            FakeUploadRequest("../ca.pem", b"cert bytes")
+        )
+
+        assert result == ({"error": "invalid filename"}, 400)
+        assert list(tmp_path.iterdir()) == []
+
+    asyncio.run(scenario())
+
+
+def test_certificate_upload_rejects_empty_body(tmp_path, monkeypatch):
+    monkeypatch.setattr(webapi_module, "CERTS_DIR", str(tmp_path))
+
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        result = await channel._handle_certificate_upload(FakeUploadRequest("ca.pem", b""))
+
+        assert result == ({"error": "empty file"}, 400)
+
+    asyncio.run(scenario())
+
+
+def test_certificate_upload_rejects_oversized_body(tmp_path, monkeypatch):
+    monkeypatch.setattr(webapi_module, "CERTS_DIR", str(tmp_path))
+    monkeypatch.setattr(webapi_module, "CERT_MAX_BYTES", 4)
+
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        result = await channel._handle_certificate_upload(
+            FakeUploadRequest("ca.pem", b"too big")
+        )
+
+        assert result == ({"error": "file too large"}, 400)
+        assert list(tmp_path.iterdir()) == []
+
+    asyncio.run(scenario())
+
+
+def test_certificate_list_returns_sorted_filenames_excluding_hidden(tmp_path, monkeypatch):
+    monkeypatch.setattr(webapi_module, "CERTS_DIR", str(tmp_path))
+    (tmp_path / "b.pem").write_bytes(b"b")
+    (tmp_path / "a.pem").write_bytes(b"a")
+    (tmp_path / ".hidden.tmp").write_bytes(b"tmp")
+
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        result = await channel._handle_certificate_list(None)
+
+        assert result == {"files": ["a.pem", "b.pem"]}
+
+    asyncio.run(scenario())
+
+
+def test_certificate_list_returns_empty_when_dir_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(webapi_module, "CERTS_DIR", str(tmp_path / "missing"))
+
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+
+        result = await channel._handle_certificate_list(None)
+
+        assert result == {"files": []}
+
+    asyncio.run(scenario())
+
+

@@ -463,16 +463,25 @@ the LED strip or renderer directly.
 
 ### Gating: same server, two ways to reach it
 
-`start()` waits for `webapi.enabled` and for `_network_available()` —
-`runtime.wifi.connected` **or** `runtime.wifi.ap_active` — before calling
-`self._app.start_server(port=PORT)`, so the dashboard works identically
-whether the device joined your network or fell back to its own [setup
-AP](#wi-fi-channel). A patch touching `webapi` (`_on_change`) sets a restart
-event and, if the channel just got disabled, calls `self._app.shutdown()`
-directly from inside the request handler that made the change — `shutdown()`
-only *schedules* termination for after the in-flight response is sent, so
-the client that just flipped `webapi.enabled: false` still gets its `{"ok":
-true}` back before the server actually stops.
+`webapi.enabled` is read once at startup into `self._lan_access` — it's a
+boot-only key (see [Configuration](../development.md#top-level-keys)), not a
+live toggle, specifically so saving a new value can never cut off the page
+you just used to save it. `start()` polls `_access_allowed()` before calling
+`self._app.start_server(port=PORT)`:
+
+- `self._lan_access` true (default) — allowed whenever `_network_available()`
+  is true, i.e. `runtime.wifi.connected` **or** `runtime.wifi.ap_active` —
+  the dashboard works identically whether the device joined your network or
+  fell back to its own [setup AP](#wi-fi-channel).
+- `self._lan_access` false — allowed only while `runtime.wifi.ap_active` is
+  true, so the server is reachable exclusively on the setup AP, never over
+  the configured Wi-Fi network. The server is never fully "off": the setup
+  AP must always stay reachable as the safety net.
+
+Because none of this reacts to config changes anymore, there's no
+subscriber, no restart event, and no mid-response `shutdown()` call — the
+only place the server stops is `stop()` (channel lifecycle) or naturally
+when `_access_allowed()` next comes up false on the polling loop.
 
 ### Routes: API and UI, same app, separate modules
 
@@ -495,7 +504,9 @@ called from `WebApiChannel.__init__` right after `_routes()`:
 | `GET /` | `src/webui/static/index.html` — the dashboard |
 | `GET /modes` | `src/webui/static/modes.html` — per-mode parameters (`modes.*`) |
 | `GET /config` | `src/webui/static/config.html` — device/network/system config |
-| `GET /style.css`, `GET /app.js` | Shared styling and the client-side glue |
+| `GET /styles/style.css` | `src/webui/static/styles/style.css` — shared styling |
+| `GET /js/app.js` | `src/webui/static/js/app.js` — client-side glue |
+| `GET /icons/<name>` | One SVG from `src/webui/static/icons/`, allowlisted against the `ICONS` set in `webui.py` (anything else is a 404) |
 
 Each uses `Response.send_file(...)` (microdot's static-file helper) to read
 straight off the filesystem — no templating, no build step. Because deploy
@@ -519,7 +530,12 @@ input with the right `data-key`, no JS changes. A checkbox can also carry
 `data-toggles="<id>"` to show/hide a sibling container (`id="<id>"
 class="collapsible"`) based on its own checked state — used to keep each
 `enabled`-gated section's other fields out of the way until enabled (MQTT,
-Button, IR, Logging on `config.html`).
+Button, IR, Logging on `config.html`). Icons are also fetched rather than
+inlined: any element with `data-icon="<name>"` gets its markup replaced by
+`initIcons()` with the contents of `GET /icons/<name>.svg` once fetched (and
+cached per page load) — this keeps icon markup out of the HTML/JS while
+still letting the SVG's `stroke="currentColor"` track the page's light/dark
+theme, which a plain `<img>` reference couldn't do.
 
 Two buttons intentionally have **no** dedicated backend route:
 
@@ -552,12 +568,10 @@ the client before the device drops off the network.
 
 | Function | Section | What it does |
 |---|---|---|
-| `start()` | `Channel` interface | Waits for enabled + network, runs the server, loops on restart |
+| `start()` | `Channel` interface | Caches `webapi.enabled` (boot-only) into `self._lan_access`, polls `_access_allowed()`, runs the server, loops on server exit |
 | `stop()` | `Channel` interface | Shuts the server down |
-| `_enabled()` | Enablement | Reads `webapi.enabled` |
 | `_network_available()` | Enablement | `runtime.wifi.connected` or `runtime.wifi.ap_active` |
-| `_on_change(patch)` / `_shutdown_server_if_webapi_disabled(patch)` | Enablement | `StateManager` subscriber; shuts the server down mid-request-cycle if `webapi.enabled` just went false |
-| `_wait_for_webapi_config_change()` | Enablement | Intention-named wrapper around the channel's restart event |
+| `_access_allowed()` | Enablement | `_network_available()` when `self._lan_access` is true; `runtime.wifi.ap_active` only when it's false |
 | `_routes()` | Routing | Registers the JSON API on `self._app` |
 | `_handle_restart(request)` / `_delayed_restart()` | Restart | Schedules `machine.reset()` after `RESTART_DELAY_MS` so the response reaches the client first |
 
