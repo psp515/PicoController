@@ -18,6 +18,7 @@ DEFAULTS = {
         "off": {"fade_ms": 600},
         "white": {},
         "static": {},
+        "blink": {},
         "rainbow": {},
         "runner": {"length": 5},
     },

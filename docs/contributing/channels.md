@@ -524,11 +524,17 @@ Button, IR, Logging on `config.html`).
 Two buttons intentionally have **no** dedicated backend route:
 
 - **LEDs "Test"** (`config.html`) just `POST`s the count currently typed in
-  the form plus `{"mode": {"on": true, "current": "static", "color": [255,
-  255, 255]}}` to the existing `/json/state` — the `Renderer` already
-  re-reads `leds.count` every frame and reallocates its buffer on change, so
-  this "just works" through the existing live-config path with no new
-  server-side code.
+  the form plus `{"mode": {"on": true, "current": "blink"}}` to the existing
+  `/json/state` — the `Renderer` already re-reads `leds.count` every frame and
+  reallocates its buffer on change, so this "just works" through the existing
+  live-config path with no new server-side code. `blink` (`animations/blink.py`)
+  is a regular mode like any other — it uses whatever `mode.color` is already
+  configured, so switching to it for a test needs no color logic on either
+  side. Blinking rather than a static fill makes a re-test after changing the
+  count obvious even when the color doesn't change: a steady color can look
+  identical to the previous test, but a restarted on/off cycle can't. Getting
+  back to normal afterwards is just picking any other mode again — `blink` is
+  a first-class entry in `modes`, not a special overlay state.
 - **Wi-Fi "Scan for networks"** *does* need a route (`POST
   /json/wifi/scan`), because unlike the LED count, a scan needs the radio —
   see [Wi-Fi scan](#wi-fi-scan) in the Wi-Fi channel section for why that's

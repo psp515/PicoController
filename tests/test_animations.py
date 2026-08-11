@@ -1,4 +1,5 @@
 from animations.base import WIPE_INTERVAL_MS
+from animations.blink import BLINK_MIN_MS, Blink
 from animations.rainbow import Rainbow
 from animations.runner import Runner
 from animations.static import Static
@@ -17,7 +18,13 @@ def make_mode(color=None, brightness=100, speed=10):
                 "color": color or [255, 255, 255],
                 "direction": "forward",
             },
-            "modes": {"static": {}, "white": {}, "rainbow": {}, "runner": {"length": 5}},
+            "modes": {
+                "static": {},
+                "white": {},
+                "blink": {},
+                "rainbow": {},
+                "runner": {"length": 5},
+            },
         }
     )
     return state.mode
@@ -71,6 +78,27 @@ def test_white_ignores_mode_color():
     buffer = render_until_wipe_done(anim, 2)
 
     assert bytes(buffer) == bytes([255] * 6)
+
+
+def test_blink_alternates_lit_and_dark_on_even_odd_frames():
+    mode = make_mode(color=[10, 20, 30], speed=100)
+    anim = Blink(mode, mode.params("blink"))
+    count = 4
+    buffer = bytearray(count * 3)
+
+    anim.render(buffer, count, 0)
+    assert bytes(buffer) == bytes([20, 10, 30] * count)
+
+    anim.render(buffer, count, 1)
+    assert bytes(buffer) == bytes(count * 3)
+
+
+def test_blink_interval_scales_with_speed_and_has_a_floor():
+    fast = Blink(make_mode(speed=100), {})
+    slow = Blink(make_mode(speed=1), {})
+
+    assert fast.interval_ms == BLINK_MIN_MS
+    assert slow.interval_ms > fast.interval_ms
 
 
 def test_rainbow_first_frame_is_dark_then_fills():

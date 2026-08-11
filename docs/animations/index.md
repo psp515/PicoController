@@ -18,6 +18,7 @@ after a power cut.
 | `off` | Fades the strip smoothly down to black, then stays off. |
 | `white` | Solid white. |
 | `static` | A solid color of your choosing (see [Color](#color)). Fades in from one end when you switch to it. |
+| `blink` | Your chosen color flashing on and off. Speed controls how fast it blinks. |
 | `rainbow` | A rainbow that scrolls along the strip. Its speed and direction are adjustable, and it works with [segmenting](#segmenting). |
 | `runner` | A short trail of light that chases along the strip, brightest in the middle and fading at the ends. |
 
@@ -34,20 +35,22 @@ These apply across modes and are set together with the mode (over
 ### Speed
 
 `speed` also runs from **1 to 100**, and controls how fast the animated modes
-move. It only affects `rainbow` and `runner`; the solid modes ignore it.
+move. It affects `rainbow`, `runner`, and `blink`; `white` and `static` ignore
+it.
 
 | Mode | What speed feels like |
 |---|---|
 | `runner` | How fast the trail travels. `10` takes about 14 seconds to go once around a 144-LED strip; `100` sweeps it in under 2 seconds. |
 | `rainbow` | How fast the rainbow scrolls. `10` is roughly one full color cycle per second; `100` is strobe-fast. |
+| `blink` | How fast it flashes. `10` blinks a little slower than once a second; `100` blinks five times a second. |
 
 Comfortable everyday values are around **5–20**.
 
 ### Color
 
 `color` is a single `[red, green, blue]` value (each 0–255) used by the
-color-driven modes — `static` fills the strip with it, and `runner`'s trail
-takes it. `white` and `rainbow` ignore it.
+color-driven modes — `static` fills the strip with it, `blink` flashes it, and
+`runner`'s trail takes it. `white` and `rainbow` ignore it.
 
 ### Direction
 

@@ -194,8 +194,8 @@ function initLedTest() {
     if (!count || count < 1) return;
     postPatch({
       leds: { count },
-      mode: { on: true, current: "static", color: [255, 255, 255] },
-    }).then(() => showBanner("Lit " + count + " LEDs"));
+      mode: { on: true, current: "blink" },
+    }).then(() => showBanner("Blinking " + count + " LEDs"));
   });
 }
 
