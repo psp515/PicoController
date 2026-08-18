@@ -3,7 +3,7 @@ import time
 
 from storage import merge
 
-VERSION = "2.0.0"
+VERSION = "1.1.0"
 
 MODE_RANGES = {"brightness": (1, 100), "speed": (1, 100)}
 MODE_DIRECTIONS = ("forward", "backward")
