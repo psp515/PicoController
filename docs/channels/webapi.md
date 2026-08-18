@@ -10,7 +10,7 @@ nav_order: 4
 A browser-based dashboard and configuration page, served by the device
 itself — no app, no cloud account, nothing to install. It works over your
 normal Wi-Fi network, and also over the device's own
-[setup network](wifi.md#cant-connect-the-device-opens-its-own-setup-network)
+[setup network](network.md#cant-connect-the-device-opens-its-own-setup-network)
 if it can't join yours, so there's always a way in.
 
 ## Reaching it
@@ -28,7 +28,7 @@ its setup network) in a browser:
   soon as you hit Save — most settings apply immediately, a few need a
   restart (see the **Applies** column in the
   [Development guide](../development.md#top-level-keys)) — **Wi-Fi network
-  settings always need a restart**, see [Wi-Fi](wifi.md).
+  settings always need a restart**, see [Network](network.md).
 
 Some sections have their own action button beyond Save:
 
@@ -53,11 +53,11 @@ Configured in the `webapi` section of `config.json`:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `webapi.enabled` | `true` | Set to `false` to restrict the dashboard/API to the device's own [setup AP](wifi.md#cant-connect-the-device-opens-its-own-setup-network) — they stay unreachable over your configured Wi-Fi network, but always reachable on the setup AP. `true` (default) allows both. |
+| `webapi.wifi_access` | `true` | Set to `false` to restrict the dashboard/API to the device's own [setup AP](network.md#cant-connect-the-device-opens-its-own-setup-network) — they stay unreachable over your configured Wi-Fi network, but always reachable on the setup AP. `true` (default) allows both. |
 
 {: .important }
 > **Changes need a restart.** Like Wi-Fi credentials, saving a new
-> `webapi.enabled` value doesn't take effect immediately — restart the
+> `webapi.wifi_access` value doesn't take effect immediately — restart the
 > device (restart button or power cycle) to apply it. This is deliberate:
 > it means saving this setting can never immediately lock you out of the
 > page you just used to change it.

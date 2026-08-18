@@ -22,8 +22,16 @@ DEFAULTS = {
         "rainbow": {},
         "runner": {"length": 5},
     },
-    "wifi": {"ssid": "", "password": "", "ap_ssid": "PicoController", "ap_password": "Pico123456!"},
-    "webapi": {"enabled": True},
+    "network": {
+        "wifi": {"ssid": "", "password": ""},
+        "ap": {
+            "ssid": "PicoController",
+            "password": "Pico123456!",
+            "retry_interval": 120,
+            "retry_quiet_period": 60,
+        },
+    },
+    "webapi": {"wifi_access": True},
     "mqtt": {
         "enabled": True,
         "server": "",

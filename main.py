@@ -12,8 +12,8 @@ from machine import WDT, Pin
 
 from channels.button import ButtonChannel
 from channels.mqtt import MqttChannel
+from channels.network import NetworkChannel
 from channels.webapi import WebApiChannel
-from channels.wifi import WifiChannel
 from logger.console import ConsoleAppender
 from logger.logger import Logger
 from renderer import Renderer
@@ -53,7 +53,7 @@ async def main():
         state.data()["mode"]["on"] = True
 
     channels = [
-        WifiChannel(state, logger),
+        NetworkChannel(state, logger),
         ButtonChannel(state, logger),
         MqttChannel(state, logger),
         WebApiChannel(state, logger),

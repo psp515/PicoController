@@ -150,7 +150,7 @@ class MqttChannel(Channel):
     # --- Restart & publish signalling ---
 
     def _on_change(self, patch):
-        if "mqtt" in patch or "wifi" in patch:
+        if "mqtt" in patch or "network" in patch:
             self._request_session_restart()
         else:
             self._request_state_publish()
@@ -186,7 +186,7 @@ class MqttChannel(Channel):
             return "mqtt.enabled is false"
         if not self.state.get("mqtt", "server", default=""):
             return "no server configured"
-        if not self.state.get("wifi", "ssid", default=""):
+        if not self.state.get("network", "wifi", "ssid", default=""):
             return "wifi is disabled"
         if self.state.get("mqtt", "ssl", default=False) and self.state.get(
             "mqtt", "certificate", "validate", default=False
@@ -211,7 +211,9 @@ class MqttChannel(Channel):
     # --- Connection setup ---
 
     async def _wait_for_wifi_connected(self):
-        while self._session_alive() and not self.state.get("runtime", "wifi", "connected"):
+        while self._session_alive() and not self.state.get(
+            "runtime", "network", "wifi", "connected"
+        ):
             await asyncio.sleep_ms(WIFI_POLL_MS)
 
     def _load_topic_config(self):
@@ -258,8 +260,8 @@ class MqttChannel(Channel):
         cfg["port"] = self.state.get("mqtt", "port", default=1883)
         cfg["user"] = self.state.get("mqtt", "user", default="")
         cfg["password"] = self.state.get("mqtt", "password", default="")
-        cfg["ssid"] = self.state.get("wifi", "ssid", default="")
-        cfg["wifi_pw"] = self.state.get("wifi", "password", default="")
+        cfg["ssid"] = self.state.get("network", "wifi", "ssid", default="")
+        cfg["wifi_pw"] = self.state.get("network", "wifi", "password", default="")
         cfg["will"] = (self._topics.online_status, "offline", True, 0)
         cfg["queue_len"] = 4
         ssl_enabled = self.state.get("mqtt", "ssl", default=False)

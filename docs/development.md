@@ -140,7 +140,7 @@ two on an actual device — see [Manual setup](setup.md) for setting up
   write instead of hitting flash on every tick.
 - Writes go to `config.json.tmp` then `os.rename()` over the real file — an
   atomic swap, so a power loss mid-write can't corrupt the config.
-- The `runtime` key (e.g. `runtime.wifi.connected`) is excluded from what
+- The `runtime` key (e.g. `runtime.network.wifi.connected`) is excluded from what
   gets persisted — it's live status, not configuration.
 - If the file is missing or fails to parse as JSON, `Storage` falls back to
   `DEFAULTS` and immediately recreates the file.
@@ -180,16 +180,17 @@ means it's picked up at runtime, `reboot` means it's only read at startup,
 | `leds` | `count`, `pin`, `on_after_boot`, `segmenting` | `count`/`segmenting` live; `pin` reboot; `on_after_boot` boot only | `count` is read fresh every frame by the `Renderer`, which reallocates the NeoPixel buffer if it changed — so it's changeable at runtime, no reboot needed (floor of 1, clamped in `StateManager`); `pin` is bound once at startup; `on_after_boot` controls whether the strip lights up on power-up or waits `off`; `segmenting: {"enabled": bool, "length": n}` splits the strip into repeating `length`-LED blocks for compatible modes — see [Animations](animations/index.md#segmenting) |
 | `mode` | `current`, `brightness`, `speed`, `on`, `color`, `direction` | live | Runtime mode state: active mode name, global brightness/speed (1-100, clamped), on/off, global `color: [r, g, b]` (each 0-255, clamped) used by color-driven modes, and `direction` (`"forward"`/`"backward"`) — `"backward"` mirrors the rendered strip so animations run from the far end; applies to every mode except `off` — see [Animations](animations/index.md#direction) |
 | `modes` | one entry per mode name | live | Each mode's own params, e.g. `runner: {"length": n}`, `off: {"fade_ms": n}` — see [Animations](animations/index.md) |
-| `wifi` | `ssid`, `password`, `ap_ssid`, `ap_password` | reboot | Read once at boot, not reactive to config changes — saving new values only takes effect after a restart. Empty `ssid` disables Wi-Fi — and with it MQTT, which requires Wi-Fi — and goes straight to the fallback AP; a configured network the device can't reach after a few tries falls back to the same AP (`ap_ssid`/`ap_password`), which then stays up until restart — see [Channel internals](contributing/channels.md#wi-fi-channel) |
+| `network` | `wifi.ssid`, `wifi.password`, `ap.ssid`, `ap.password` | reboot | Read once at boot, not reactive to config changes — saving new values only takes effect after a restart. Empty `wifi.ssid` disables Wi-Fi — and with it MQTT, which requires Wi-Fi — and goes straight to the fallback AP; a configured network the device can't reach after a few tries falls back to the same AP (`ap.ssid`/`ap.password`) — see [Channel internals](contributing/channels.md#network-channel) |
+| `network` | `ap.retry_interval`, `ap.retry_quiet_period` | live | Seconds; while on the fallback AP, how often (`ap.retry_interval`, default `120`) the channel retries the configured network, gated by how long the AP must have been idle first (`ap.retry_quiet_period`, default `60`) — read fresh on every retry check, no restart needed — see [Channel internals](contributing/channels.md#network-channel) |
 | `mqtt` | `enabled`, `server`, `port`, `user`, `password`, `base_topic`, `use_single_topic_for_state_update`, `ssl`, `ssl_params`, `certificate` (`validate`, `name`), `ntp_host` | live — session restarts | Disabled when `enabled` is `false`, `server` is empty, Wi-Fi is disabled, or (when `ssl` and `certificate.validate` are both true) the cert at `certs/<certificate.name>` isn't readable — fail-closed, no silent fallback to unverified TLS; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting; any change tears the session down (publishing `"offline"` on the old topic) and reconnects with the new config — see [Channel internals](contributing/channels.md#certificate-validation) |
 | `button` | `pin`, `enabled` | `pin` reboot; `enabled` live | GPIO for the cover button; `enabled: false` makes the channel ignore presses |
-| `webapi` | `enabled` | boot only | JSON API + Web UI server; read once at boot like `wifi.*` — `enabled: false` restricts the server to the device's setup AP only (never reachable over the configured Wi-Fi network), `true` (default) allows both — see [Channel internals](contributing/channels.md#web-api--web-ui-channel) |
+| `webapi` | `wifi_access` | boot only | JSON API + Web UI server; read once at boot like `network.*` — `wifi_access: false` restricts the server to the device's setup AP only (never reachable over the configured Wi-Fi network), `true` (default) allows both — see [Channel internals](contributing/channels.md#web-api--web-ui-channel) |
 | `logging` | `enabled`, `level` | live | Disabled by default; `level` is one of `debug`/`info`/`warning`/`error`; both checked on every log call |
 | `watchdog` | `enabled` | reboot | Hardware watchdog (see below); disabled by default, enable on production devices; checked once at startup — the RP2040 watchdog can't be disarmed once running anyway |
 
 `runtime` is a further top-level key that appears once the device is running
-(e.g. `runtime.wifi.connected`/`ip`) — it's written by channels, read like any
-other state, but never persisted to disk.
+(e.g. `runtime.network.wifi.connected`/`ip`) — it's written by channels, read
+like any other state, but never persisted to disk.
 
 ## Watchdog
 
