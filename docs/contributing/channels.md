@@ -43,34 +43,40 @@ class Channel:
 - `start()` — the channel's main coroutine; runs for the lifetime of the
   device. Long-running channels loop internally with
   `await asyncio.sleep_ms(...)` between polls; don't return early unless the
-  channel is intentionally idle (see `MqttChannel`/`WifiChannel` when
+  channel is intentionally idle (see `MqttChannel`/`NetworkChannel` when
   unconfigured).
 - `stop()` — cooperative shutdown; not currently called from `main.py` but
   implemented for symmetry and for tests.
 
-## Wi-Fi channel
+## Network channel
 
-Implemented in `src/channels/wifi.py`. It doesn't accept commands from
+Implemented in `src/channels/network.py`. It doesn't accept commands from
 anything — it only keeps the station interface connected and publishes
-`runtime.wifi.connected`/`runtime.wifi.ip` (station) and
-`runtime.wifi.ap_active`/`runtime.wifi.ap_ip` (setup AP), which other
-channels can use — `webapi.py`'s gating on either flag is the main consumer,
-see [Web API / Web UI channel](#web-api--web-ui-channel).
+`runtime.network.wifi.connected`/`ip` (station) and
+`runtime.network.ap.active`/`ip` (setup AP), which other channels can use —
+`webapi.py`'s gating on either flag is the main consumer, see [Web API / Web
+UI channel](#web-api--web-ui-channel). The relationship also runs the other
+way: `WebApiChannel` writes `runtime.network.ap.last_request_ms` so this
+channel knows whether the setup AP is currently in active use before
+attempting a retry — see below.
 
-### Boot-once credentials, AP-forever fallback
+### Boot-once credentials, AP fallback with a quiet-gated retry
 
 There's no external library here, just `network.WLAN(network.STA_IF)` (and,
 for the fallback, `network.WLAN(network.AP_IF)`) driven from a single
-`uasyncio` loop. Deliberately **not** dynamic: `wifi.ssid`/`wifi.password`
-are read exactly once, in `start()`, not re-read on a config change — there
-is no subscription to `StateManager` in this channel at all (contrast
-`MqttChannel`, which reacts to config changes live). This is a simplicity
-trade-off: no revert-on-bad-credentials machinery to maintain, at the cost
-of needing a restart to try new credentials — see the AP fallback below for
-why that's an acceptable trade-off, not a lockout risk.
+`uasyncio` loop. `network.wifi.ssid`/`network.wifi.password` are deliberately
+**not** dynamic: read exactly once, in `start()`, not re-read on a config
+change — there is no subscription to `StateManager` for credentials in this
+channel (contrast `MqttChannel`, which reacts to config changes live). This
+is a simplicity trade-off: no revert-on-bad-credentials machinery to
+maintain, at the cost of needing a restart to try new credentials.
+`network.ap.retry_interval` and `network.ap.retry_quiet_period`, by
+contrast, *are* read live (every retry check) — there's no lockout risk in
+changing retry cadence, so no reason to make them boot-only.
 
 - **Empty `ssid` at boot** → straight to `_run_ap_forever()`, no connection
-  attempt — there's nothing to attempt.
+  attempt — there's nothing to attempt, and nothing to retry, so the AP just
+  stays up until restart.
 - **Non-empty `ssid`** → `_keep_connected(ssid, password)`: connect
   (`_connect()`, a bounded poll up to `CONNECT_TIMEOUT_MS`, never a blocking
   call), and on success, monitor forever at `MONITOR_MS`. If an established
@@ -79,19 +85,37 @@ why that's an acceptable trade-off, not a lockout risk.
   is resilience against a transient outage, not the dynamic-reconfiguration
   behavior that was deliberately removed.
 - **After `AP_FALLBACK_ATTEMPTS` consecutive failures** (whether at boot or
-  after a later drop), `_keep_connected` calls `_run_ap_forever()` and
-  returns — the channel is now done trying the station side entirely for
-  this boot.
-- **`_run_ap_forever()`** deactivates the station interface, brings up
-  `network.WLAN(network.AP_IF)` with `wifi.ap_ssid`/`wifi.ap_password` (open
-  if the password is empty), publishes `ap_active: true`/`ap_ip`, then just
-  idles (`while self._running: sleep(AP_POLL_MS)`) — no timer, no early exit
-  on a config change, it stays up until `stop()` (i.e. a restart).
+  after a later drop), `_keep_connected` calls `_run_ap_with_retry(ssid,
+  password)`. Unlike the empty-`ssid` case, this *does* keep trying the
+  configured network in the background — it isn't giving up on the station
+  side, just parking on the AP between attempts.
+- **`_run_ap_with_retry()`** brings up the AP (`_activate_ap()` — same setup
+  `_run_ap_forever()` uses) and polls every `AP_POLL_MS`, tracking elapsed
+  time since the last attempt. Once `_retry_interval_ms()`
+  (`network.ap.retry_interval`, seconds → ms) has elapsed, it checks
+  `_quiet_long_enough()`: has it been at least `_retry_quiet_ms()`
+  (`network.ap.retry_quiet_period`) since `runtime.network.ap.last_request_ms`
+  (set by `WebApiChannel`'s `before_request` hook — see [Web API / Web UI
+  channel](#web-api--web-ui-channel) — only while `ap.active` is true, so
+  it doesn't matter once the device is properly connected; missing/`None`
+  counts as quiet). If not quiet, it skips this round without resetting the
+  elapsed timer, so it rechecks every `AP_POLL_MS` and retries as soon as
+  activity stops. If quiet, `_try_reconnect_from_ap()` deactivates the AP,
+  attempts `_connect()`, and either publishes `connected: true` and returns
+  (control goes back to `_keep_connected`, which resumes normal monitoring)
+  or restores the AP and keeps waiting for the next interval. This is the
+  other deliberate exception to "AP and an active station connection
+  attempt never run concurrently" — noted in `.claude/CLAUDE.md` — and
+  exactly why the quiet gate exists: a retry is disruptive (it drops anyone
+  connected to the AP for up to `CONNECT_TIMEOUT_MS`), so it only happens
+  when nobody's actively using the setup network.
 - **Downstream channels gate on state, not on this channel directly.**
-  `WifiChannel` never calls into `MqttChannel`/`WebApiChannel` — it just
+  `NetworkChannel` never calls into `MqttChannel`/`WebApiChannel` — it just
   writes to shared state, and those channels poll the fields they need
   themselves. The same is true in the other direction — see Wi-Fi scan below
-  for how a *request* to this channel is made without a direct reference.
+  for how a *request* to this channel is made without a direct reference,
+  and above for how `last_request_ms` flows the other way (`WebApiChannel`
+  writing, `NetworkChannel` reading).
 
 ### Wi-Fi scan
 
@@ -100,12 +124,12 @@ this channel is the radio's sole owner (see the Architecture rule in
 `.claude/CLAUDE.md`). Instead it's mediated through shared state, the same
 pattern used elsewhere for cross-channel needs:
 
-1. `POST /json/wifi/scan` sets `runtime.wifi.scan_requested: true`.
+1. `POST /json/wifi/scan` sets `runtime.network.wifi.scan_requested: true`.
 2. A small polling task (`_scan_service()`, spawned from `start()` alongside
    the main connect logic — the same "background task from `start()`"
    pattern `MqttChannel` uses) notices the flag, calls `_perform_scan()`,
-   and writes `runtime.wifi.scan_results` (list of `{ssid, rssi, channel,
-   open}`) plus clears the flag.
+   and writes `runtime.network.wifi.scan_results` (list of `{ssid, rssi,
+   channel, open}`) plus clears the flag.
 3. The client polls the existing `GET /json/state` until `scan_requested`
    goes back to `false`.
 
@@ -122,21 +146,26 @@ Two things worth knowing if you touch this:
   while its AP is active needs verifying on real hardware, same caveat as
   the rest of the AP/STA work in this channel.
 
-### Wi-Fi exposed functions
+### Network exposed functions
 
 | Function | Type | What it does |
 |---|---|---|
 | `start()` | `Channel` interface | Reads credentials once, spawns the scan service, runs the connect-or-AP logic; the device's single long-lived entry point for this channel |
 | `stop()` | `Channel` interface | Disconnects and deactivates both interfaces |
-| `_keep_connected(ssid, password)` | internal | Connect/monitor/backoff loop for the boot's one set of credentials, escalating to AP-forever after repeated failures |
+| `_keep_connected(ssid, password)` | internal | Connect/monitor/backoff loop for the boot's one set of credentials, escalating to `_run_ap_with_retry()` after repeated failures and resuming monitoring if it reconnects |
 | `_connect(ssid, password)` | internal | One bounded connection attempt, `await`-polled up to `CONNECT_TIMEOUT_MS` |
 | `_reset_radio()` | internal | Deactivates the radio and pauses `RADIO_RESET_MS` before the connect loop begins |
-| `_run_ap_forever()` | internal | Brings up the setup AP and idles until `stop()` — no timer, no early exit |
-| `_ap_credentials()` | internal | Reads `wifi.ap_ssid`/`ap_password`, defaulting the SSID to `"<device.name>-setup"` |
+| `_run_ap_forever()` | internal | Brings up the setup AP and idles until `stop()` — no timer, no early exit; used only when no `ssid` is configured |
+| `_run_ap_with_retry(ssid, password)` | internal | Brings up the setup AP and periodically retries `ssid`/`password` in the background, gated by `_retry_interval_ms()`/`_quiet_long_enough()`; returns `True` on reconnect, `False` on shutdown |
+| `_try_reconnect_from_ap(ssid, password)` | internal | One gated retry attempt: drops the AP, calls `_connect()`, publishes success or restores the AP on failure |
+| `_activate_ap()` | internal | Shared AP setup (config + `_publish_ap`) used by both `_run_ap_forever()` and `_run_ap_with_retry()` |
+| `_retry_interval_ms()` / `_retry_quiet_ms()` | internal | Live reads of `network.ap.retry_interval`/`network.ap.retry_quiet_period`, seconds converted to ms |
+| `_quiet_long_enough(quiet_ms)` | internal | Whether `runtime.network.ap.last_request_ms` is old enough (or unset) to allow a retry |
+| `_ap_credentials()` | internal | Reads `network.ap.ssid`/`password`, defaulting the SSID to `"<device.name>-setup"` |
 | `_perform_scan()` | internal | Reactivates the station interface, calls `WLAN.scan()`, formats the results |
-| `_scan_service()` | internal | Background task: polls `runtime.wifi.scan_requested`, runs `_perform_scan()`, writes `scan_results` |
-| `_publish(connected, ip)` | internal | De-dupes against the last known state, logs on change, and writes `runtime.wifi.connected`/`ip` |
-| `_publish_ap(active, ip)` | internal | Same de-dupe pattern as `_publish`, for `runtime.wifi.ap_active`/`ap_ip` |
+| `_scan_service()` | internal | Background task: polls `runtime.network.wifi.scan_requested`, runs `_perform_scan()`, writes `scan_results` |
+| `_publish(connected, ip)` | internal | De-dupes against the last known state, logs on change, and writes `runtime.network.wifi.connected`/`ip` |
+| `_publish_ap(active, ip)` | internal | Same de-dupe pattern as `_publish`, for `runtime.network.ap.active`/`ip` |
 
 ## Button channel
 
@@ -197,12 +226,12 @@ When `button.enabled` is `false`, the loop just sleeps (`DISABLED_POLL_MS`,
 
 Implemented in `src/channels/mqtt.py`. Only active if `mqtt.enabled` is true
 (the default), `mqtt.server` is set, **and** Wi-Fi is enabled (non-empty
-`wifi.ssid`) — a disabled Wi-Fi channel implies a disabled MQTT channel. If
-`mqtt.certificate.validate` is also on (see
+`network.wifi.ssid`) — a disabled network channel implies a disabled MQTT
+channel. If `mqtt.certificate.validate` is also on (see
 [Certificate validation](#certificate-validation)), the configured CA
 certificate must be readable too. When any of those isn't met, `start()` waits
 without touching the network (logging which condition failed) until the
-`mqtt`/`wifi` config changes.
+`mqtt`/`network` config changes.
 
 ### Non-blocking, via `mqtt_as`
 
@@ -215,14 +244,14 @@ channel calls `time.sleep()` or any other blocking socket API, matching the
 project rule of never using the blocking `umqtt.simple`/`umqtt.robust` clients.
 
 - **Wi-Fi first.** `start()` blocks (via a non-blocking poll loop, not a real
-  block) on `runtime.wifi.connected` before doing anything else — MQTT never
-  attempts to connect on its own.
-- **Wi-Fi stays with the Wi-Fi channel.** Stock `mqtt_as` manages the radio
+  block) on `runtime.network.wifi.connected` before doing anything else —
+  MQTT never attempts to connect on its own.
+- **Wi-Fi stays with the network channel.** Stock `mqtt_as` manages the radio
   itself: its `wifi_connect()` re-issues `connect(ssid, password)` on an
   already-connected interface (forcing a reassociation that can break DNS
   right before the broker lookup), and its `close()` disconnects and
   deactivates the whole interface. Both conflict with the
-  [Wi-Fi channel](#wi-fi-channel) being the radio's single owner, so the
+  [Network channel](#network-channel) being the radio's single owner, so the
   channel builds an `ExternalWifiMQTTClient` (a small `MQTTClient` subclass in
   `src/channels/mqtt.py`) instead: `wifi_connect()` only polls
   `_sta_if.isconnected()` until the radio is up, and `close()` only closes the
@@ -230,9 +259,9 @@ project rule of never using the blocking `umqtt.simple`/`umqtt.robust` clients.
   every broker connect attempt. The `ssid`/`wifi_pw` config keys are still
   populated (the `MQTTClient` constructor requires them) but never used to
   drive the radio.
-- **`mqtt.enabled` true, `mqtt.server` non-empty, `wifi.ssid` non-empty.** Any
-  of them missing is an explicit "disabled" state, not an error — the channel
-  logs the reason and waits for a config change.
+- **`mqtt.enabled` true, `mqtt.server` non-empty, `network.wifi.ssid`
+  non-empty.** Any of them missing is an explicit "disabled" state, not an
+  error — the channel logs the reason and waits for a config change.
 - **`machine.unique_id()` must be available** — it's hex-encoded into
   `client_id` (`StateManager.device_id`) so multiple devices on the same broker
   don't collide.
@@ -254,12 +283,12 @@ project rule of never using the blocking `umqtt.simple`/`umqtt.robust` clients.
 `start()` runs for the lifetime of the device. It subscribes to internal state
 changes once (`self.state.subscribe(self._on_change)` — the app's own
 `StateManager` pub/sub, not MQTT), then loops over *sessions* (`_session`), one
-per set of `mqtt`/`wifi` config. Each session, in order:
+per set of `mqtt`/`network` config. Each session, in order:
 
 1. If the channel is disabled (`mqtt.enabled` false, empty `mqtt.server`, empty
-   `wifi.ssid`, or an unusable certificate when validation is on), log the
-   reason and wait until the `mqtt`/`wifi` section changes.
-2. Wait for `runtime.wifi.connected`.
+   `network.wifi.ssid`, or an unusable certificate when validation is on), log
+   the reason and wait until the `mqtt`/`network` section changes.
+2. Wait for `runtime.network.wifi.connected`.
 3. Read `mqtt.base_topic`.
 4. If `mqtt.ssl` is true, sync the clock over NTP, retrying until it works.
 5. Build the `mqtt_as` client from config (`_build_client`).
@@ -442,7 +471,7 @@ that derives the topic strings from `base_topic` + single-topic mode, and
 | `_sleep_unless_session_restarts(ms)` | Restart & publish signalling | Sliced sleep that returns early when a session restart is requested |
 | `_disabled_reason()` | Enablement | Returns why the channel can't run, or `None` when it can |
 | `_certificate_disabled_reason()` | Enablement | Checks the certificate is usable when `mqtt.ssl` and `mqtt.certificate.validate` are both true |
-| `_wait_for_wifi_connected()` | Connection setup | Polls `runtime.wifi.connected` until up |
+| `_wait_for_wifi_connected()` | Connection setup | Polls `runtime.network.wifi.connected` until up |
 | `_load_topic_config()` | Connection setup | Reads `base_topic`/single-topic mode into a fresh `MqttTopics` |
 | `_sync_time_with_retries()` / `_sync_time()` | Connection setup | NTP clock sync (needed for TLS) |
 | `_build_client()` | Connection setup | Builds the `mqtt_as` config dict and `MQTTClient` instance from `state` |
@@ -463,25 +492,36 @@ the LED strip or renderer directly.
 
 ### Gating: same server, two ways to reach it
 
-`webapi.enabled` is read once at startup into `self._lan_access` — it's a
+`webapi.wifi_access` is read once at startup into `self._lan_access` — it's a
 boot-only key (see [Configuration](../development.md#top-level-keys)), not a
 live toggle, specifically so saving a new value can never cut off the page
 you just used to save it. `start()` polls `_access_allowed()` before calling
 `self._app.start_server(port=PORT)`:
 
 - `self._lan_access` true (default) — allowed whenever `_network_available()`
-  is true, i.e. `runtime.wifi.connected` **or** `runtime.wifi.ap_active` —
-  the dashboard works identically whether the device joined your network or
-  fell back to its own [setup AP](#wi-fi-channel).
-- `self._lan_access` false — allowed only while `runtime.wifi.ap_active` is
-  true, so the server is reachable exclusively on the setup AP, never over
-  the configured Wi-Fi network. The server is never fully "off": the setup
-  AP must always stay reachable as the safety net.
+  is true, i.e. `runtime.network.wifi.connected` **or**
+  `runtime.network.ap.active` — the dashboard works identically whether the
+  device joined your network or fell back to its own [setup
+  AP](#network-channel).
+- `self._lan_access` false — allowed only while `runtime.network.ap.active`
+  is true, so the server is reachable exclusively on the setup AP, never
+  over the configured Wi-Fi network. The server is never fully "off": the
+  setup AP must always stay reachable as the safety net.
 
 Because none of this reacts to config changes anymore, there's no
 subscriber, no restart event, and no mid-response `shutdown()` call — the
 only place the server stops is `stop()` (channel lifecycle) or naturally
 when `_access_allowed()` next comes up false on the polling loop.
+
+### Activity tracking for the Wi-Fi retry
+
+A `before_request` handler (`track_ap_activity`, registered in `_routes()`)
+writes `runtime.network.ap.last_request_ms` on every request, but only while
+`runtime.network.ap.active` is true — it's a no-op once the device is
+properly connected, so normal operation never touches this field.
+`NetworkChannel` reads it back to decide whether the setup AP has been idle
+long enough to attempt a disruptive retry of the configured network without
+interrupting an active setup session — see [Network channel](#network-channel).
 
 ### Routes: API and UI, same app, separate modules
 
@@ -493,7 +533,7 @@ when `_access_allowed()` next comes up false on the polling loop.
 | `POST /json/state` | Merges a JSON patch into state via `state.update(...)` |
 | `GET /info` | `{"id", "version", "uptime_ms"}` |
 | `POST /json/restart` | `_handle_restart` — see below |
-| `POST /json/wifi/scan` | Sets `runtime.wifi.scan_requested: true` — see [Wi-Fi scan](#wi-fi-scan); the result lands in `runtime.wifi.scan_results`, read back via `GET /json/state` (no separate results route) |
+| `POST /json/wifi/scan` | Sets `runtime.network.wifi.scan_requested: true` — see [Wi-Fi scan](#wi-fi-scan); the result lands in `runtime.network.wifi.scan_results`, read back via `GET /json/state` (no separate results route) |
 
 `register_ui_routes(app)` (in `src/webui/webui.py`, a plain function, not a
 `Channel`) registers the static UI on the *same* `Microdot` instance —
@@ -568,10 +608,11 @@ the client before the device drops off the network.
 
 | Function | Section | What it does |
 |---|---|---|
-| `start()` | `Channel` interface | Caches `webapi.enabled` (boot-only) into `self._lan_access`, polls `_access_allowed()`, runs the server, loops on server exit |
+| `start()` | `Channel` interface | Caches `webapi.wifi_access` (boot-only) into `self._lan_access`, polls `_access_allowed()`, runs the server, loops on server exit |
 | `stop()` | `Channel` interface | Shuts the server down |
-| `_network_available()` | Enablement | `runtime.wifi.connected` or `runtime.wifi.ap_active` |
-| `_access_allowed()` | Enablement | `_network_available()` when `self._lan_access` is true; `runtime.wifi.ap_active` only when it's false |
+| `_network_available()` | Enablement | `runtime.network.wifi.connected` or `runtime.network.ap.active` |
+| `_access_allowed()` | Enablement | `_network_available()` when `self._lan_access` is true; `runtime.network.ap.active` only when it's false |
+| `track_ap_activity(request)` | Activity tracking | `before_request` hook; writes `runtime.network.ap.last_request_ms` while `runtime.network.ap.active` is true, for `NetworkChannel`'s retry gating |
 | `_routes()` | Routing | Registers the JSON API on `self._app` |
 | `_handle_restart(request)` / `_delayed_restart()` | Restart | Schedules `machine.reset()` after `RESTART_DELAY_MS` so the response reaches the client first |
 
@@ -642,7 +683,7 @@ class MyChannel(Channel):
 from channels.mychannel import MyChannel
 ...
 channels = [
-    WifiChannel(state, logger),
+    NetworkChannel(state, logger),
     ButtonChannel(state, logger),
     MqttChannel(state, logger),
     MyChannel(state, logger),

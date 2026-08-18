@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import network
 
@@ -16,8 +17,8 @@ SCAN_POLL_MS = 300
 DEFAULT_AP_SUFFIX = "-setup"
 
 
-class WifiChannel(Channel):
-    name = "wifi"
+class NetworkChannel(Channel):
+    name = "network"
 
     def __init__(self, state, logger):
         super().__init__(state, logger)
@@ -32,32 +33,32 @@ class WifiChannel(Channel):
             return
         self._connected = connected
         if connected:
-            self.logger.info("wifi", "connected ip {0}", ip)
+            self.logger.info("network", "connected ip {0}", ip)
         else:
-            self.logger.warning("wifi", "disconnected")
-        self.state.update({"runtime": {"wifi": {"connected": connected, "ip": ip}}})
+            self.logger.warning("network", "disconnected")
+        self.state.update({"runtime": {"network": {"wifi": {"connected": connected, "ip": ip}}}})
 
     def _publish_ap(self, active, ip):
         if active == self._ap_active:
             return
         self._ap_active = active
         if active:
-            self.logger.warning("wifi", "setup ap up, ip {0}", ip)
+            self.logger.warning("network", "setup ap up, ip {0}", ip)
         else:
-            self.logger.debug("wifi", "setup ap down")
-        self.state.update({"runtime": {"wifi": {"ap_active": active, "ap_ip": ip}}})
+            self.logger.debug("network", "setup ap down")
+        self.state.update({"runtime": {"network": {"ap": {"active": active, "ip": ip}}}})
 
     def _ap_credentials(self):
-        ssid = self.state.get("wifi", "ap_ssid", default="")
+        ssid = self.state.get("network", "ap", "ssid", default="")
         if not ssid:
             name = self.state.get("device", "name", default="PicoController")
             ssid = name + DEFAULT_AP_SUFFIX
-        password = self.state.get("wifi", "ap_password", default="")
+        password = self.state.get("network", "ap", "password", default="")
         return ssid, password
 
-    async def _run_ap_forever(self):
+    def _activate_ap(self):
         ssid, password = self._ap_credentials()
-        self.logger.warning("wifi", "starting setup ap {0}", ssid)
+        self.logger.warning("network", "starting setup ap {0}", ssid)
         self._wlan.active(False)
         self._ap.active(True)
         if password:
@@ -65,18 +66,63 @@ class WifiChannel(Channel):
         else:
             self._ap.config(ssid=ssid, security=0)
         self._publish_ap(True, self._ap.ifconfig()[0])
+
+    def _retry_interval_ms(self):
+        seconds = self.state.get("network", "ap", "retry_interval", default=120)
+        return max(0, int(seconds)) * 1000
+
+    def _retry_quiet_ms(self):
+        seconds = self.state.get("network", "ap", "retry_quiet_period", default=60)
+        return max(0, int(seconds)) * 1000
+
+    def _quiet_long_enough(self, quiet_ms):
+        last = self.state.get("runtime", "network", "ap", "last_request_ms")
+        if last is None:
+            return True
+        return time.ticks_diff(time.ticks_ms(), last) >= quiet_ms
+
+    async def _run_ap_forever(self):
+        self._activate_ap()
         while self._running:
             await asyncio.sleep_ms(AP_POLL_MS)
         self._ap.active(False)
         self._publish_ap(False, None)
 
+    async def _try_reconnect_from_ap(self, ssid, password):
+        self.logger.info("network", "ap idle, retrying station connection to {0}", ssid)
+        self._ap.active(False)
+        self._publish_ap(False, None)
+        if await self._connect(ssid, password):
+            self._publish(True, self._wlan.ifconfig()[0])
+            return True
+        self.logger.debug("network", "retry failed, restoring setup ap")
+        return False
+
+    async def _run_ap_with_retry(self, ssid, password):
+        self._activate_ap()
+        elapsed_ms = 0
+        while self._running:
+            await asyncio.sleep_ms(AP_POLL_MS)
+            elapsed_ms += AP_POLL_MS
+            if elapsed_ms < self._retry_interval_ms():
+                continue
+            if not self._quiet_long_enough(self._retry_quiet_ms()):
+                continue
+            elapsed_ms = 0
+            if await self._try_reconnect_from_ap(ssid, password):
+                return True
+            self._activate_ap()
+        self._ap.active(False)
+        self._publish_ap(False, None)
+        return False
+
     async def _reset_radio(self):
-        self.logger.debug("wifi", "resetting radio")
+        self.logger.debug("network", "resetting radio")
         self._wlan.active(False)
         await asyncio.sleep_ms(RADIO_RESET_MS)
 
     async def _connect(self, ssid, password):
-        self.logger.debug("wifi", "connecting to {0}", ssid)
+        self.logger.debug("network", "connecting to {0}", ssid)
         self._wlan.active(True)
         self._wlan.connect(ssid, password)
         waited = 0
@@ -85,7 +131,7 @@ class WifiChannel(Channel):
                 return True
             await asyncio.sleep_ms(CONNECT_POLL_MS)
             waited += CONNECT_POLL_MS
-        self.logger.debug("wifi", "connect attempt to {0} timed out", ssid)
+        self.logger.debug("network", "connect attempt to {0} timed out", ssid)
         return False
 
     async def _keep_connected(self, ssid, password):
@@ -105,11 +151,14 @@ class WifiChannel(Channel):
             failures += 1
             if failures >= AP_FALLBACK_ATTEMPTS:
                 self.logger.warning(
-                    "wifi", "{0} failed attempts, falling back to setup ap for good", failures
+                    "network", "{0} failed attempts, falling back to setup ap", failures
                 )
-                await self._run_ap_forever()
-                return
-            self.logger.debug("wifi", "retry in {0}ms", backoff)
+                if not await self._run_ap_with_retry(ssid, password):
+                    return
+                failures = 0
+                backoff = BACKOFF_MIN_MS
+                continue
+            self.logger.debug("network", "retry in {0}ms", backoff)
             await asyncio.sleep_ms(backoff)
             backoff = min(backoff * 2, BACKOFF_MAX_MS)
 
@@ -118,7 +167,7 @@ class WifiChannel(Channel):
             self._wlan.active(True)
             raw = self._wlan.scan()
         except OSError as exc:
-            self.logger.warning("wifi", "scan failed: {0}", exc)
+            self.logger.warning("network", "scan failed: {0}", exc)
             return []
         results = []
         for ssid, _bssid, channel, rssi, security, _hidden in raw:
@@ -131,21 +180,27 @@ class WifiChannel(Channel):
 
     async def _scan_service(self):
         while self._running:
-            if self.state.get("runtime", "wifi", "scan_requested", default=False):
-                self.logger.debug("wifi", "scanning for networks")
+            if self.state.get("runtime", "network", "wifi", "scan_requested", default=False):
+                self.logger.debug("network", "scanning for networks")
                 results = self._perform_scan()
                 self.state.update(
-                    {"runtime": {"wifi": {"scan_requested": False, "scan_results": results}}}
+                    {
+                        "runtime": {
+                            "network": {
+                                "wifi": {"scan_requested": False, "scan_results": results}
+                            }
+                        }
+                    }
                 )
             await asyncio.sleep_ms(SCAN_POLL_MS)
 
     async def start(self):
         self._running = True
         asyncio.create_task(self._scan_service())
-        ssid = self.state.get("wifi", "ssid", default="")
-        password = self.state.get("wifi", "password", default="")
+        ssid = self.state.get("network", "wifi", "ssid", default="")
+        password = self.state.get("network", "wifi", "password", default="")
         if not ssid:
-            self.logger.warning("wifi", "no ssid configured, starting setup ap")
+            self.logger.warning("network", "no ssid configured, starting setup ap")
             self._publish(False, None)
             await self._run_ap_forever()
             return
@@ -156,4 +211,4 @@ class WifiChannel(Channel):
         self._wlan.disconnect()
         self._wlan.active(False)
         self._ap.active(False)
-        self.logger.info("wifi", "stopped")
+        self.logger.info("network", "stopped")

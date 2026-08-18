@@ -67,7 +67,7 @@ def test_filter_set_patch_keeps_allowed_and_drops_unknown():
     patch = {
         "mode": {"current": "rainbow", "on": False, "unknown": 1},
         "leds": {"count": 100, "pin": 5},
-        "wifi": {"password": "secret"},
+        "network": {"wifi": {"password": "secret"}},
     }
 
     allowed = channel._filter_set_patch(patch)
@@ -161,13 +161,17 @@ def test_handle_messages_ignores_disallowed_keys():
     channel, state = make_channel({"mode": {"current": "static"}})
     channel._client = FakeClient(
         queue_items=[
-            (b"controller/led/1/state/update", json.dumps({"wifi": {"password": "hacked"}}).encode(), False),
+            (
+                b"controller/led/1/state/update",
+                json.dumps({"network": {"wifi": {"password": "hacked"}}}).encode(),
+                False,
+            ),
         ]
     )
 
     asyncio.run(channel._handle_messages())
 
-    assert "wifi" not in state.data()
+    assert "network" not in state.data()
 
 
 def test_handle_messages_ignores_own_device_payload():
@@ -293,7 +297,7 @@ def test_on_change_mqtt_patch_triggers_restart_not_publish():
 def test_on_change_wifi_patch_triggers_restart():
     channel, _ = make_channel({})
 
-    channel._on_change({"wifi": {"ssid": "new"}})
+    channel._on_change({"network": {"wifi": {"ssid": "new"}}})
 
     assert channel._session_restart.is_set()
 
@@ -337,16 +341,18 @@ def test_session_disabled_without_server_wakes_on_restart():
 
 
 def test_disabled_reason_covers_enabled_server_and_wifi():
-    channel, _ = make_channel({"mqtt": {"enabled": False, "server": "b"}, "wifi": {"ssid": "x"}})
+    channel, _ = make_channel(
+        {"mqtt": {"enabled": False, "server": "b"}, "network": {"wifi": {"ssid": "x"}}}
+    )
     assert channel._disabled_reason() == "mqtt.enabled is false"
 
-    channel, _ = make_channel({"mqtt": {"server": ""}, "wifi": {"ssid": "x"}})
+    channel, _ = make_channel({"mqtt": {"server": ""}, "network": {"wifi": {"ssid": "x"}}})
     assert channel._disabled_reason() == "no server configured"
 
-    channel, _ = make_channel({"mqtt": {"server": "b"}, "wifi": {"ssid": ""}})
+    channel, _ = make_channel({"mqtt": {"server": "b"}, "network": {"wifi": {"ssid": ""}}})
     assert channel._disabled_reason() == "wifi is disabled"
 
-    channel, _ = make_channel({"mqtt": {"server": "b"}, "wifi": {"ssid": "x"}})
+    channel, _ = make_channel({"mqtt": {"server": "b"}, "network": {"wifi": {"ssid": "x"}}})
     assert channel._disabled_reason() is None
 
 
@@ -355,7 +361,7 @@ def test_disabled_reason_ignores_certificate_when_ssl_off(tmp_path, monkeypatch)
     channel, _ = make_channel(
         {
             "mqtt": {"server": "b", "ssl": False, "certificate": {"validate": True, "name": "missing.pem"}},
-            "wifi": {"ssid": "x"},
+            "network": {"wifi": {"ssid": "x"}},
         }
     )
     assert channel._disabled_reason() is None
@@ -366,7 +372,7 @@ def test_disabled_reason_certificate_missing_name(tmp_path, monkeypatch):
     channel, _ = make_channel(
         {
             "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": ""}},
-            "wifi": {"ssid": "x"},
+            "network": {"wifi": {"ssid": "x"}},
         }
     )
     assert channel._disabled_reason() == "certificate name is empty"
@@ -377,7 +383,7 @@ def test_disabled_reason_certificate_name_rejects_path_separator(tmp_path, monke
     channel, _ = make_channel(
         {
             "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": "../secrets.pem"}},
-            "wifi": {"ssid": "x"},
+            "network": {"wifi": {"ssid": "x"}},
         }
     )
     assert channel._disabled_reason() == "certificate name ../secrets.pem is invalid"
@@ -388,7 +394,7 @@ def test_disabled_reason_certificate_file_not_readable(tmp_path, monkeypatch):
     channel, _ = make_channel(
         {
             "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": "ca.pem"}},
-            "wifi": {"ssid": "x"},
+            "network": {"wifi": {"ssid": "x"}},
         }
     )
     assert channel._disabled_reason() == f"certificate {tmp_path}/ca.pem not readable"
@@ -400,7 +406,7 @@ def test_disabled_reason_certificate_file_present(tmp_path, monkeypatch):
     channel, _ = make_channel(
         {
             "mqtt": {"server": "b", "ssl": True, "certificate": {"validate": True, "name": "ca.pem"}},
-            "wifi": {"ssid": "x"},
+            "network": {"wifi": {"ssid": "x"}},
         }
     )
     assert channel._disabled_reason() is None

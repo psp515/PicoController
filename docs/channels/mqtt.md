@@ -11,7 +11,7 @@ MQTT lets anything on your network — Home Assistant, Node-RED, a phone app, or
 a command line — control the device and watch its state. Where the
 [button](button.md) gives you two gestures, MQTT gives you full control.
 
-MQTT only works once [Wi-Fi](wifi.md) is connected and a broker is configured.
+MQTT only works once [Wi-Fi](network.md) is connected and a broker is configured.
 
 ## What you can do
 

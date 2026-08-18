@@ -103,7 +103,7 @@ device boots with Wi-Fi and MQTT disabled until configured.
 To configure it upfront instead, create `config.json` with the same shape as
 `DEFAULTS` in `src/defaults.py` and fill in at least:
 
-- `wifi.ssid` / `wifi.password`
+- `network.wifi.ssid` / `network.wifi.password`
 - `mqtt.server` / `mqtt.port` / `mqtt.user` / `mqtt.password` / `mqtt.base_topic`
   (leave `mqtt.server` empty to disable MQTT entirely)
 - `leds.count` / `leds.pin` to match your strip
@@ -116,13 +116,13 @@ Copy that `config.json` onto the device alongside `main.py`/`src`/`lib`.
 
 Don't have Wi-Fi credentials to hand yet, or want to configure the device
 from your phone instead of hand-editing JSON? Skip this step — on first boot
-with no `wifi.ssid` set, the device opens its own temporary Wi-Fi network so
-you can configure everything from a browser. It stays open until you restart
-the device. See
-[Can't connect? The device opens its own setup network](channels/wifi.md#cant-connect-the-device-opens-its-own-setup-network).
+with no `network.wifi.ssid` set, the device opens its own temporary Wi-Fi
+network so you can configure everything from a browser. It stays open until
+you restart the device. See
+[Can't connect? The device opens its own setup network](channels/network.md#cant-connect-the-device-opens-its-own-setup-network).
 
 `mqtt.*` is applied at runtime (the channel reconnects on the spot when the
-config changes). `wifi.*`, the pin assignments (`leds.pin`, `button.pin`),
+config changes). `network.*`, the pin assignments (`leds.pin`, `button.pin`),
 `watchdog.enabled`, and `leds.on_after_boot` are only read at boot —
 changing those means editing the config (or saving from the Web UI) and
 restarting. See the per-key **Applies** column in the
@@ -148,7 +148,7 @@ console appender — watch them over the USB serial REPL.
 ## 6. Talking to the device
 
 MQTT waits until Wi-Fi is connected before doing anything — check
-`runtime.wifi.connected` if a message doesn't seem to land. The Web UI works
+`runtime.network.wifi.connected` if a message doesn't seem to land. The Web UI works
 as soon as the device has *any* network up, including its own setup network.
 For topics, payloads, and the dashboard, see:
 

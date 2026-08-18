@@ -48,20 +48,21 @@
         <div class="subsection">
           <h3>Access point</h3>
           <label class="field"><span>Name</span>
-            <input type="text" data-key="wifi.ap_ssid" placeholder="&lt;device name&gt;-setup">
+            <input type="text" data-key="network.ap.ssid" placeholder="&lt;device name&gt;-setup">
           </label>
           <label class="field"><span>Password</span>
-            <input type="password" data-key="wifi.ap_password" placeholder="open (no password)">
+            <input type="password" data-key="network.ap.password" placeholder="open (no password)">
           </label>
+          <p class="hint">Changes to the access point name/password only take effect after a restart.</p>
         </div>
         <div class="subsection">
           <h3>Network</h3>
           <label class="field"><span>Network name (SSID)</span>
-            <input type="text" data-key="wifi.ssid" list="wifi-ssid-options" autocomplete="off">
+            <input type="text" data-key="network.wifi.ssid" list="wifi-ssid-options" autocomplete="off">
           </label>
           <datalist id="wifi-ssid-options"></datalist>
           <label class="field"><span>Password</span>
-            <input type="password" data-key="wifi.password">
+            <input type="password" data-key="network.wifi.password">
           </label>
           <div class="action-row">
             <button type="button" id="wifi-scan-btn" class="secondary">
@@ -192,8 +193,8 @@
 
       <section class="card">
         <h2>Web API</h2>
-        <label class="field"><span>Enabled (restart required)</span>
-          <input type="checkbox" data-key="webapi.enabled">
+        <label class="field"><span>Enabled through Wi-Fi (restart required)</span>
+          <input type="checkbox" data-key="webapi.wifi_access">
         </label>
         <p class="hint">Unchecking this restricts the dashboard/API to the device's own setup AP only — not reachable over your Wi-Fi network. Takes effect after a restart.</p>
       </section>

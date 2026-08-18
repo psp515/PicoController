@@ -59,7 +59,7 @@ def test_starts_when_connected(monkeypatch):
     patch_timings(monkeypatch)
 
     async def body(channel, state):
-        state.update({"runtime": {"wifi": {"connected": True}}})
+        state.update({"runtime": {"network": {"wifi": {"connected": True}}}})
         await asyncio.sleep(0.05)
         assert channel._app.start_calls == [80]
 
@@ -70,7 +70,7 @@ def test_starts_when_only_ap_active(monkeypatch):
     patch_timings(monkeypatch)
 
     async def body(channel, state):
-        state.update({"runtime": {"wifi": {"ap_active": True}}})
+        state.update({"runtime": {"network": {"ap": {"active": True}}}})
         await asyncio.sleep(0.05)
         assert channel._app.start_calls == [80]
 
@@ -81,36 +81,55 @@ def test_ap_only_blocks_start_when_connected_via_station(monkeypatch):
     patch_timings(monkeypatch)
 
     async def body(channel, state):
-        state.update({"runtime": {"wifi": {"connected": True}}})
+        state.update({"runtime": {"network": {"wifi": {"connected": True}}}})
         await asyncio.sleep(0.05)
         assert channel._app.start_calls == []
 
-    asyncio.run(run_scenario({"webapi": {"enabled": False}}, body))
+    asyncio.run(run_scenario({"webapi": {"wifi_access": False}}, body))
 
 
 def test_ap_only_allows_start_when_ap_active(monkeypatch):
     patch_timings(monkeypatch)
 
     async def body(channel, state):
-        state.update({"runtime": {"wifi": {"ap_active": True}}})
+        state.update({"runtime": {"network": {"ap": {"active": True}}}})
         await asyncio.sleep(0.05)
         assert channel._app.start_calls == [80]
 
-    asyncio.run(run_scenario({"webapi": {"enabled": False}}, body))
+    asyncio.run(run_scenario({"webapi": {"wifi_access": False}}, body))
 
 
 def test_enabled_is_boot_only(monkeypatch):
     patch_timings(monkeypatch)
 
     async def body(channel, state):
-        state.update({"runtime": {"wifi": {"connected": True}}})
+        state.update({"runtime": {"network": {"wifi": {"connected": True}}}})
         await asyncio.sleep(0.05)
         assert len(channel._app.start_calls) == 1
-        state.update({"webapi": {"enabled": False}})
+        state.update({"webapi": {"wifi_access": False}})
         await asyncio.sleep(0.05)
         assert not channel._app._shutdown.is_set()
 
     asyncio.run(run_scenario({}, body))
+
+
+def test_tracks_last_request_only_while_on_ap():
+    async def scenario():
+        state = StateManager({})
+        logger = Logger(state)
+        channel = WebApiChannel(state, logger)
+        req = FakeRequest("GET", "/info")
+
+        for handler in channel._app.before_request_handlers:
+            await handler(req)
+        assert state.get("runtime", "network", "ap", "last_request_ms") is None
+
+        state.update({"runtime": {"network": {"ap": {"active": True}}}})
+        for handler in channel._app.before_request_handlers:
+            await handler(req)
+        assert state.get("runtime", "network", "ap", "last_request_ms") is not None
+
+    asyncio.run(scenario())
 
 
 def test_restart_endpoint_responds_ok_and_schedules_reset(monkeypatch):
@@ -203,7 +222,7 @@ def test_wifi_scan_endpoint_sets_request_flag():
         result = await handler(req)
 
         assert result == {"ok": True}
-        assert state.get("runtime", "wifi", "scan_requested") is True
+        assert state.get("runtime", "network", "wifi", "scan_requested") is True
 
     asyncio.run(scenario())
 

@@ -261,9 +261,9 @@ def test_revalidate_marks_changed_when_a_value_gets_corrected():
 
 
 def test_update_passes_through_sections_without_a_validator_untouched():
-    state = StateManager({"wifi": {"ssid": "", "password": ""}})
+    state = StateManager({"network": {"wifi": {"ssid": "", "password": ""}}})
 
-    state.update({"wifi": {"ssid": "MyNetwork", "password": "hunter2"}})
+    state.update({"network": {"wifi": {"ssid": "MyNetwork", "password": "hunter2"}}})
 
-    assert state.get("wifi", "ssid") == "MyNetwork"
-    assert state.get("wifi", "password") == "hunter2"
+    assert state.get("network", "wifi", "ssid") == "MyNetwork"
+    assert state.get("network", "wifi", "password") == "hunter2"

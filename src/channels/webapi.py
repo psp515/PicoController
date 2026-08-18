@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import time
 
 import machine
 from microdot import Microdot
@@ -28,14 +29,14 @@ class WebApiChannel(Channel):
 
     def _network_available(self):
         return bool(
-            self.state.get("runtime", "wifi", "connected")
-            or self.state.get("runtime", "wifi", "ap_active")
+            self.state.get("runtime", "network", "wifi", "connected")
+            or self.state.get("runtime", "network", "ap", "active")
         )
 
     def _access_allowed(self):
         if self._lan_access:
             return self._network_available()
-        return bool(self.state.get("runtime", "wifi", "ap_active"))
+        return bool(self.state.get("runtime", "network", "ap", "active"))
 
     async def _delayed_restart(self):
         await asyncio.sleep_ms(RESTART_DELAY_MS)
@@ -79,6 +80,13 @@ class WebApiChannel(Channel):
         state = self.state
         logger = self.logger
 
+        @app.before_request
+        async def track_ap_activity(request):
+            if state.get("runtime", "network", "ap", "active"):
+                state.update(
+                    {"runtime": {"network": {"ap": {"last_request_ms": time.ticks_ms()}}}}
+                )
+
         @app.get("/json/state")
         async def get_state(request):
             return state.data()
@@ -106,7 +114,7 @@ class WebApiChannel(Channel):
 
         @app.post("/json/wifi/scan")
         async def wifi_scan(request):
-            state.update({"runtime": {"wifi": {"scan_requested": True}}})
+            state.update({"runtime": {"network": {"wifi": {"scan_requested": True}}}})
             return {"ok": True}
 
         @app.post("/json/mqtt/certificate")
@@ -119,7 +127,7 @@ class WebApiChannel(Channel):
 
     async def start(self):
         self._running = True
-        self._lan_access = self.state.get("webapi", "enabled", default=True)
+        self._lan_access = self.state.get("webapi", "wifi_access", default=True)
         while self._running:
             while self._running and not self._access_allowed():
                 await asyncio.sleep_ms(WIFI_POLL_MS)

@@ -313,7 +313,8 @@ function initWifiScan() {
       const poll = () => {
         attempts += 1;
         fetchState().then((state) => {
-          const wifi = state.runtime && state.runtime.wifi ? state.runtime.wifi : {};
+          const network = state.runtime && state.runtime.network ? state.runtime.network : {};
+          const wifi = network.wifi || {};
           if (!wifi.scan_requested || attempts >= 10) {
             button.disabled = false;
             setButtonLabel(button, "Scan for networks");

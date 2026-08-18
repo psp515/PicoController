@@ -16,7 +16,7 @@ and stay in sync — a change made one way shows up everywhere else instantly.
 - [Web API](webapi.md) — a browser dashboard and configuration page served
   by the device itself.
 
-Wi-Fi isn't a control method on its own — the [Wi-Fi channel](wifi.md) just
+Wi-Fi isn't a control method on its own — the [Network channel](network.md) just
 keeps the device connected (falling back to its own network if it can't) so
 MQTT and the Web UI can reach it.
 

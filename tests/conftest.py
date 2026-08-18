@@ -73,7 +73,7 @@ if "ir_rx" not in sys.modules:
     sys.modules["ir_rx"] = ir_rx_stub
     sys.modules["ir_rx.nec"] = ir_rx_nec_stub
 
-# channels/wifi.py imports network, a MicroPython-only module. Stub it so
+# channels/network.py imports network, a MicroPython-only module. Stub it so
 # CPython can import and exercise that code under test; tests replace the
 # channel's _wlan with their own fake.
 if "network" not in sys.modules:
