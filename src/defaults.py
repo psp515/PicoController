@@ -45,6 +45,7 @@ DEFAULTS = {
         "certificate": {"validate": False, "name": ""},
         "ntp_host": "pool.ntp.org",
     },
+    "system": {"default_mode": "normal", "boot_to_config": False},
     "logging": {"enabled": False, "level": "info"},
     "button": {"pin": 3, "enabled": True},
     "ir": {"pin": 2, "enabled": True},

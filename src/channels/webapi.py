@@ -7,7 +7,7 @@ import machine
 from microdot import Microdot
 
 from channels.base import Channel
-from channels.mqtt import CERTS_DIR
+from storage import CERTS_DIR, Storage
 from webui.webui import register_ui_routes
 
 WIFI_POLL_MS = 500
@@ -40,6 +40,8 @@ class WebApiChannel(Channel):
 
     async def _delayed_restart(self):
         await asyncio.sleep_ms(RESTART_DELAY_MS)
+        # Special case: config is saved every 2 seconds so we need to ensure that the state is saved before restarting
+        Storage().save(self.state.data(), self.logger)
         machine.reset()
 
     async def _handle_restart(self, request):

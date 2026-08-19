@@ -16,9 +16,11 @@ two gestures, one button.
 | On | **Click** (short press) | Switches to the **next lighting mode** |
 | On | **Hold ~1s**, then release | Lights turn **off** |
 | Off | **Hold ~1s**, then release | Lights turn **on** |
-| Any | **Hold longer than ~2s** | Nothing — the press is cancelled, so an accidental long hold does nothing |
+| Any | **Hold ~2-5s**, then release | Nothing — the press is cancelled, so an accidental long hold does nothing |
+| Any | **Hold ~5s** | Lights turn **off** as a "you can let go now" signal, and one second later the device **restarts into config mode** — its setup Wi-Fi network with the dashboard, for changing settings. Releasing after the lights go off doesn't cancel it. See [boot modes](../setup.md#boot-modes) |
 
-So: click to wake it up or change the look, hold briefly to switch it off.
+So: click to wake it up or change the look, hold briefly to switch it off,
+hold long to get to the settings.
 Everything the button changes is saved automatically — after a power cut the
 device comes back exactly as you left it.
 

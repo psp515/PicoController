@@ -11,7 +11,7 @@ How the control channels work under the hood, and how to add a new one. For
 what each channel does from a user's point of view, see the
 [Channels](../channels/index.md) section.
 
-Every channel is a `uasyncio` task started concurrently at boot from `main.py`
+Every channel is a `uasyncio` task started concurrently at boot from `src/application.py`
 — none of them block startup on each other, and none of them touch the LED
 strip or renderer directly. A channel's only job is to turn "something
 happened" into a patch on the shared state via `self.state.update(patch)`.
@@ -45,7 +45,7 @@ class Channel:
   `await asyncio.sleep_ms(...)` between polls; don't return early unless the
   channel is intentionally idle (see `MqttChannel`/`NetworkChannel` when
   unconfigured).
-- `stop()` — cooperative shutdown; not currently called from `main.py` but
+- `stop()` — cooperative shutdown; not currently called from `application.py` but
   implemented for symmetry and for tests.
 
 ## Network channel
@@ -74,6 +74,11 @@ maintain, at the cost of needing a restart to try new credentials.
 contrast, *are* read live (every retry check) — there's no lockout risk in
 changing retry cadence, so no reason to make them boot-only.
 
+- **Config boot mode** (`runtime.system.mode == "config"`, published by
+  `application.py`'s boot-mode resolution) → straight to
+  `_run_ap_forever()` before credentials are even read — config mode is
+  AP-only by design, so the dashboard is always at the AP's predictable
+  address while reconfiguring.
 - **Empty `ssid` at boot** → straight to `_run_ap_forever()`, no connection
   attempt — there's nothing to attempt, and nothing to retry, so the AP just
   stays up until restart.
@@ -198,6 +203,8 @@ the button was held between the debounced press and the debounced release.
 1. Debounce the raw pin level against `STABLE_POLLS`.
 2. On a debounced **press** (level goes to `0`): record `pressed_at`.
 3. On a debounced **release** (level goes back to `1`), classify `held_ms`:
+   - after the config-hold feedback fired (see below): ignored — the reboot
+     is already committed.
    - `>= ABORT_MS`: held far too long, treated as an aborted gesture — no state
      change, just a log line.
    - `>= LONG_PRESS_MS`: toggles `mode.on` (device on/off).
@@ -206,8 +213,18 @@ the button was held between the debounced press and the debounced release.
      advance the mode); if already **on**, advance to the next mode via
      `state.mode.next_mode()`.
 
+One gesture is detected **while held**, not on release: once a press has
+lasted `OFF_FEEDBACK_MS` (5 s), the loop turns the LEDs off as user feedback
+(one-shot, guarded by a flag) and arms a timestamp; `CONFIG_REBOOT_DELAY_MS`
+(1 s) later — checked every poll, whether the button was released or not —
+it calls `application.reboot_to_config()` (`src/application.py`), which sets the
+one-shot `system.boot_to_config` flag, saves the config to disk
+*synchronously* (the debounced autosave would lose it), and resets the
+device into [config mode](../development.md#top-level-keys).
+
 The press-timing thresholds (`POLL_MS`, `STABLE_POLLS`, `LONG_PRESS_MS`,
-`ABORT_MS`) are module constants in `src/channels/button.py`, not config —
+`ABORT_MS`, `OFF_FEEDBACK_MS`, `CONFIG_REBOOT_DELAY_MS`) are module constants
+in `src/channels/button.py`, not config —
 change them there and re-flash if the physical button needs different timing.
 The pin is bound once at startup, so moving the button (`button.pin`) needs a
 reboot; the same applies to `leds.pin`.
@@ -602,7 +619,10 @@ Two buttons intentionally have **no** dedicated backend route:
 `_delayed_restart` as a background task and returns `{"ok": true}`
 immediately — `_delayed_restart` waits `RESTART_DELAY_MS` (300ms) before
 calling `machine.reset()`, so the HTTP response has time to actually reach
-the client before the device drops off the network.
+the client before the device drops off the network. Right before the reset
+it saves the config to disk via `Storage().save(...)` — the debounced
+autosave (2s) would otherwise lose a change made just before restarting,
+e.g. a freshly saved `system.default_mode`.
 
 ### Web API exposed functions
 
@@ -614,7 +634,7 @@ the client before the device drops off the network.
 | `_access_allowed()` | Enablement | `_network_available()` when `self._lan_access` is true; `runtime.network.ap.active` only when it's false |
 | `track_ap_activity(request)` | Activity tracking | `before_request` hook; writes `runtime.network.ap.last_request_ms` while `runtime.network.ap.active` is true, for `NetworkChannel`'s retry gating |
 | `_routes()` | Routing | Registers the JSON API on `self._app` |
-| `_handle_restart(request)` / `_delayed_restart()` | Restart | Schedules `machine.reset()` after `RESTART_DELAY_MS` so the response reaches the client first |
+| `_handle_restart(request)` / `_delayed_restart()` | Restart | Schedules save-then-`machine.reset()` after `RESTART_DELAY_MS` so the response reaches the client first |
 
 ## Adding a new channel
 
@@ -622,7 +642,7 @@ No other file needs to change — the renderer and every other channel are
 unaware of each other. Steps:
 
 1. Create `src/channels/<name>.py` from the template below.
-2. Register an instance of it in the `channels` list in `main.py`.
+2. Register an instance of it in the `channels` list in `src/application.py`.
 3. If it needs config, add defaults for it to `DEFAULTS` in `src/defaults.py`
    (and to `config.dev.json` for local testing).
 
@@ -678,14 +698,28 @@ class MyChannel(Channel):
 
 ### Wiring it in
 
+`src/application.py` builds the channel list per **boot mode** (`main.py` is
+only a thin starter — path setup + `asyncio.run`), resolved once at boot by
+`resolve_boot_mode(state)` (same module) and published as
+`runtime.system.mode`: `normal` runs everything, `config` skips
+`MqttChannel`, `mqtt-ssl` skips `WebApiChannel`. Channel imports are lazy —
+inside `main()`, after the mode is known — so a skipped channel's module
+(and its dependencies, e.g. `microdot` or `mqtt_as`) is never loaded; that's
+what frees the contiguous heap the TLS handshake needs in mqtt-ssl mode.
+Keep it that way: a module-top import of a channel in `application.py` (or any
+import chain from an always-loaded module into `channels.webapi`/
+`channels.mqtt`) silently defeats the mode split.
+
+If the device should boot into config mode, `system.boot_to_config` is set,
+saved synchronously, and the device reset (`application.reboot_to_config`);
+`main()` clears and re-saves the flag immediately after resolving it, before
+channels start, so config mode is always one-shot even if a later crash
+reboots the device.
+
 ```python
-# main.py
-from channels.mychannel import MyChannel
+# src/application.py, inside main()
+mode = resolve_boot_mode(state)
 ...
-channels = [
-    NetworkChannel(state, logger),
-    ButtonChannel(state, logger),
-    MqttChannel(state, logger),
-    MyChannel(state, logger),
-]
+from channels.mychannel import MyChannel
+channels.append(MyChannel(state, logger))   # in the right mode branch
 ```

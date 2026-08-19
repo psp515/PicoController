@@ -197,6 +197,11 @@ class NetworkChannel(Channel):
     async def start(self):
         self._running = True
         asyncio.create_task(self._scan_service())
+        if self.state.get("runtime", "system", "mode") == "config":
+            self.logger.warning("network", "config mode, starting setup ap only")
+            self._publish(False, None)
+            await self._run_ap_forever()
+            return
         ssid = self.state.get("network", "wifi", "ssid", default="")
         password = self.state.get("network", "wifi", "password", default="")
         if not ssid:

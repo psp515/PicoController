@@ -28,6 +28,16 @@ It is a MicroPython ARGB LED Controller.
 - Configuration should be presited between on and off in .json file (also runtime data like current mode and mode specs)
 - if device will be turned off there should be posted message to mqtt broker about last will
 - provide option whether to tunr on led after powering up 
+- Three boot modes resolved once at boot (`src/application.py`), because the Pico W
+  can't hold microdot/webapi and an MQTT TLS session in RAM at once (mbedTLS
+  handshake needs ~33KB contiguous heap): **normal** (all channels),
+  **mqtt-ssl** (`system.default_mode: "mqtt-ssl"`, no Web UI/API loaded;
+  falls back to normal unless mqtt is enabled with a server and `ssl: true`),
+  **config** (one-shot: setup AP + Web UI/API + button, no mqtt; entered by
+  holding the button ~5s — LEDs turn off as feedback, 1s later the device
+  restarts into config mode regardless of release; the `system.boot_to_config`
+  flag is cleared and saved immediately at that boot, so the next restart
+  returns to `default_mode`)
 - lightinginh modes:
   - white mode
   - static color mode
@@ -91,6 +101,16 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   static Web UI routes (`src/webui/webui.py`) in separate modules sharing one
   `Microdot` app/port, so either can change without touching the other.
 - Application should start as quickly as possible and cahnnels should start concurrenctly
+- `main.py` is a thin starter only (sys.path setup + `asyncio.run`); all
+  application logic lives in `src/application.py`, which builds the channel
+  list per boot mode (see Requirements) with **lazy imports inside `main()`**
+  — a skipped channel's module (microdot, mqtt_as) must never be imported in
+  that mode. No module-top channel imports in `application.py`, and no import
+  chain from always-loaded modules into `channels.webapi`/`channels.mqtt`
+  (that's why `CERTS_DIR` lives in `src/storage.py`, not `channels/mqtt.py`).
+- Every reset path (`application.reboot_to_config`, webapi restart endpoint) must
+  save config synchronously via `Storage().save(...)` before `machine.reset()`
+  — the debounced autosave (2s) loses writes made just before a reset.
 
 ## Selected libraries
 
@@ -109,6 +129,10 @@ If introducing helpfull abstraction will not be problematic it is advised to app
   (channel tears the session down, publishes `offline` on the old topic, and
   reconnects with the new config). `network.wifi.ssid`/`network.wifi.password`
   are the exception — see below.
+- `system.default_mode` (`"normal"`/`"mqtt-ssl"`, validated in `StateManager`)
+  is read once at boot (reboot to apply); `system.boot_to_config` is a
+  one-shot boot flag, never a lasting setting — cleared and re-saved to disk
+  immediately when config mode boots.
 - Boot-only exceptions: pin assignments (`leds.pin`, `button.pin`, `ir.pin` —
   pin changes imply rewiring, reboot is free), `watchdog.enabled` (RP2040 WDT
   can't be disarmed once armed), `leds.on_after_boot` (boot-only by nature),

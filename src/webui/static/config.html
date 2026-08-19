@@ -44,6 +44,19 @@
       </section>
 
       <section class="card">
+        <h2>System</h2>
+        <label class="field"><span>Default boot mode (restart required)</span>
+          <select data-key="system.default_mode">
+            <option value="normal">normal</option>
+            <option value="mqtt-ssl">mqtt-ssl</option>
+          </select>
+        </label>
+        <p class="hint"><strong>normal</strong> — every channel runs: Wi-Fi, MQTT, this dashboard.</p>
+        <p class="hint"><strong>mqtt-ssl</strong> — MQTT over TLS only; the dashboard and Web API are not started, freeing the memory the encrypted connection needs. Requires MQTT enabled with a server and SSL turned on, otherwise the device boots normal. To change settings later, hold the device button ~5&nbsp;seconds.</p>
+        <p class="hint"><strong>config</strong> — setup mode, never a default: hold the button ~5&nbsp;seconds until the LEDs turn off, and the device restarts onto its setup access point with this dashboard. Restarting from config mode returns to the default mode.</p>
+      </section>
+
+      <section class="card">
         <h2>Wi-Fi</h2>
         <div class="subsection">
           <h3>Access point</h3>

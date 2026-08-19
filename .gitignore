@@ -138,6 +138,8 @@ docs/.sass-cache/
 docs/Gemfile.lock
 .claude/settings.json
 
+helpers/release/
+
 certs/*.der
 certs/*.pem
 .DS_Store

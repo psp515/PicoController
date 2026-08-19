@@ -1,4 +1,4 @@
-from state import VALIDATORS, StateManager, _validate_leds, _validate_mode
+from state import VALIDATORS, StateManager, _validate_leds, _validate_mode, _validate_system
 
 
 def test_get_returns_default_for_missing_path():
@@ -214,10 +214,11 @@ def test_validate_leds_ignores_non_numeric_segmenting_length_in_isolation():
     assert result == {"segmenting": {"enabled": True}}
 
 
-def test_validators_registry_covers_mode_and_leds():
-    assert set(VALIDATORS) == {"mode", "leds"}
+def test_validators_registry_covers_mode_leds_and_system():
+    assert set(VALIDATORS) == {"mode", "leds", "system"}
     assert VALIDATORS["mode"] is _validate_mode
     assert VALIDATORS["leds"] is _validate_leds
+    assert VALIDATORS["system"] is _validate_system
 
 
 def test_revalidate_clamps_out_of_range_values_loaded_from_disk():
@@ -267,3 +268,27 @@ def test_update_passes_through_sections_without_a_validator_untouched():
 
     assert state.get("network", "wifi", "ssid") == "MyNetwork"
     assert state.get("network", "wifi", "password") == "hunter2"
+
+
+def test_update_drops_invalid_default_mode():
+    state = StateManager({"system": {"default_mode": "normal", "boot_to_config": False}})
+
+    state.update({"system": {"default_mode": "party"}})
+
+    assert state.get("system", "default_mode") == "normal"
+
+
+def test_update_allows_valid_default_mode():
+    state = StateManager({"system": {"default_mode": "normal", "boot_to_config": False}})
+
+    state.update({"system": {"default_mode": "mqtt-ssl"}})
+
+    assert state.get("system", "default_mode") == "mqtt-ssl"
+
+
+def test_update_coerces_boot_to_config_to_bool():
+    state = StateManager({"system": {"default_mode": "normal", "boot_to_config": False}})
+
+    state.update({"system": {"boot_to_config": 1}})
+
+    assert state.get("system", "boot_to_config") is True

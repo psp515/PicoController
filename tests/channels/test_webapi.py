@@ -137,6 +137,12 @@ def test_restart_endpoint_responds_ok_and_schedules_reset(monkeypatch):
     calls = []
     monkeypatch.setattr(webapi_module.machine, "reset", lambda: calls.append(True))
 
+    class FakeStorage:
+        def save(self, data, logger=None):
+            pass
+
+    monkeypatch.setattr(webapi_module, "Storage", FakeStorage)
+
     async def scenario():
         state = StateManager({})
         logger = Logger(state)
@@ -337,3 +343,23 @@ def test_certificate_list_returns_empty_when_dir_missing(tmp_path, monkeypatch):
     asyncio.run(scenario())
 
 
+
+
+def test_restart_saves_config_before_reset(monkeypatch):
+    patch_timings(monkeypatch)
+    monkeypatch.setattr(webapi_module, "RESTART_DELAY_MS", 1)
+    calls = []
+
+    class FakeStorage:
+        def save(self, data, logger=None):
+            calls.append(("save", data["device"]["name"]))
+
+    monkeypatch.setattr(webapi_module, "Storage", FakeStorage)
+    monkeypatch.setattr(webapi_module.machine, "reset", lambda: calls.append(("reset",)))
+
+    async def body(channel, state):
+        await channel._handle_restart(None)
+        await asyncio.sleep(0.05)
+        assert calls == [("save", "Pico"), ("reset",)]
+
+    asyncio.run(run_scenario({"device": {"name": "Pico"}}, body))
