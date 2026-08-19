@@ -11,8 +11,13 @@ function getPath(obj, path) {
   return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
 }
 
+const BLACKLIST_KEYS_FOR_PREVENTING_POLLUTION = new Set(["__proto__", "constructor", "prototype"]);
+
 function setPath(obj, path, value) {
   const keys = path.split(".");
+  if (keys.some((k) => BLACKLIST_KEYS_FOR_PREVENTING_POLLUTION.has(k))) {
+    return;
+  }
   let node = obj;
   for (let i = 0; i < keys.length - 1; i++) {
     node[keys[i]] = node[keys[i]] || {};
