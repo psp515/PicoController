@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="src/webui/static/icons/logo.svg" alt="PicoController logo" width="96" height="96" />
+  <img src="src/webui/static/icons/logo.png" alt="PicoController logo" width="96" height="96" />
 
   <h1>Pico Controller</h1>
   <p>MicroPython ARGB LED controller for the Raspberry Pi Pico W</p>
