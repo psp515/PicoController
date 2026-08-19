@@ -3,12 +3,15 @@ import time
 
 from machine import Pin
 
+import application
 from channels.base import Channel
 
 POLL_MS = 20
 STABLE_POLLS = 2
 LONG_PRESS_MS = 1000
 ABORT_MS = 2000
+OFF_FEEDBACK_MS = 5000
+CONFIG_REBOOT_DELAY_MS = 1000
 DISABLED_POLL_MS = 1000
 
 
@@ -31,11 +34,23 @@ class ButtonChannel(Channel):
         last_raw = stable
         count = 0
         pressed_at = None
+        off_fired = False
+        reboot_armed_at = None
         while self._running:
             if not self._enabled():
                 pressed_at = None
                 await asyncio.sleep_ms(DISABLED_POLL_MS)
                 continue
+            now = time.ticks_ms()
+            if reboot_armed_at is not None and time.ticks_diff(now, reboot_armed_at) >= CONFIG_REBOOT_DELAY_MS:
+                reboot_armed_at = None
+                application.reboot_to_config(self.state, self.logger)
+            if stable == 0 and pressed_at is not None and not off_fired:
+                if time.ticks_diff(now, pressed_at) >= OFF_FEEDBACK_MS:
+                    off_fired = True
+                    reboot_armed_at = now
+                    self.logger.warning("button", "long hold, turning off and arming config reboot")
+                    self.state.update({"mode": {"on": False}})
             raw = self._pin.value()
             if raw != last_raw:
                 count = 0
@@ -46,11 +61,14 @@ class ButtonChannel(Channel):
                 stable = raw
                 if stable == 0:
                     pressed_at = time.ticks_ms()
+                    off_fired = False
                     self.logger.debug("button", "down")
                 else:
                     held_ms = time.ticks_diff(time.ticks_ms(), pressed_at) if pressed_at is not None else 0
                     self.logger.debug("button", "up after {0}ms", held_ms)
-                    if held_ms >= ABORT_MS:
+                    if off_fired:
+                        self.logger.debug("button", "released after config hold, ignoring")
+                    elif held_ms >= ABORT_MS:
                         self.logger.debug("button", "held too long, aborted")
                     elif held_ms >= LONG_PRESS_MS:
                         turn_on = not self.state.mode.on

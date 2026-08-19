@@ -137,10 +137,36 @@ local development, so real credentials never end up in the repo).
 
 ## 5. First boot
 
-Power the board. Startup order is: load config → start renderer + autosave
-task → start all channels concurrently (Wi-Fi, button, MQTT, Web API).
+Power the board. Startup order is: load config → resolve the boot mode (see
+below) → start renderer + autosave task → start that mode's channels
+concurrently.
 Nothing blocks on Wi-Fi/MQTT connecting — the LED strip lights up immediately
 using the persisted mode.
+
+## Boot modes
+
+The device picks one of three modes at every boot:
+
+| Mode | What runs | When |
+|---|---|---|
+| **normal** | Everything: Wi-Fi, button, MQTT, Web UI/API | The default |
+| **mqtt-ssl** | Wi-Fi, button, MQTT only — **no Web UI/API** | When `system.default_mode` is `"mqtt-ssl"` and MQTT is enabled with a server and SSL on; otherwise the device boots normal |
+| **config** | Setup Wi-Fi access point, Web UI/API, button — **no MQTT** | One boot only, after holding the button ~5 seconds |
+
+Why mqtt-ssl exists: an encrypted MQTT connection needs a large block of free
+memory for its TLS handshake, and on a Pico W the web dashboard can crowd it
+out. In mqtt-ssl mode the dashboard is simply never loaded, so the encrypted
+connection gets the room it needs.
+
+Since mqtt-ssl mode has no dashboard, config mode is how you get it back:
+**hold the button ~5 seconds** — the lights turn off to say "you can let go
+now" — and a second later the device restarts onto its setup network
+(the access point from `network.ap.*`) with the dashboard available. Change
+what you need, save, and hit Restart (or power-cycle): the device returns to
+your default mode. Config mode is always a single boot — it never sticks.
+
+Pick the default in the Web UI's configuration page ("System" card) or set
+`system.default_mode` in `config.json`. It takes effect on the next restart.
 
 If `logging.enabled` is `true` in the config, log lines are written to the
 console appender — watch them over the USB serial REPL.

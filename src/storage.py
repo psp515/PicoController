@@ -6,6 +6,7 @@ from defaults import DEFAULTS
 
 CONFIG_FILE = "config.json"
 DEV_CONFIG_FILE = "config.dev.json"
+CERTS_DIR = "certs"
 
 
 def merge(base, patch):

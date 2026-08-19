@@ -46,9 +46,17 @@ if "machine" not in sys.modules:
         def value(self):
             return 1
 
+    class _WDTStub:
+        def __init__(self, timeout=None):
+            self.timeout = timeout
+
+        def feed(self):
+            pass
+
     machine_stub.RTC = _RTCStub
     machine_stub.unique_id = lambda: b"dev"
     machine_stub.Pin = _PinStub
+    machine_stub.WDT = _WDTStub
     machine_stub.reset = lambda: None
     sys.modules["machine"] = machine_stub
 

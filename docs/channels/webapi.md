@@ -62,6 +62,15 @@ Configured in the `webapi` section of `config.json`:
 > it means saving this setting can never immediately lock you out of the
 > page you just used to change it.
 
+{: .important }
+> **Not available in mqtt-ssl mode.** With `system.default_mode` set to
+> `"mqtt-ssl"`, the dashboard and JSON API aren't started at all — that's
+> the point of the mode, freeing memory for the encrypted MQTT connection.
+> Hold the device button ~5 seconds to restart into
+> [config mode](../setup.md#boot-modes), where the dashboard is available on
+> the setup network. The **Restart device** button also saves any pending
+> config changes before rebooting.
+
 {: .note }
 > How the server, routing, and static-file serving work internally is
 > covered in

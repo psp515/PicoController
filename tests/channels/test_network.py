@@ -144,6 +144,24 @@ def test_no_ssid_starts_ap_immediately(monkeypatch):
     asyncio.run(run_channel_while(channel, body))
 
 
+def test_config_mode_starts_ap_even_with_ssid_configured(monkeypatch):
+    patch_timings(monkeypatch)
+    channel, state = make_channel(
+        {
+            "network": {"wifi": {"ssid": "home", "password": "pw"}},
+            "runtime": {"system": {"mode": "config"}},
+        }
+    )
+
+    async def body():
+        await asyncio.sleep(0.05)
+        assert state.get("runtime", "network", "ap", "active") is True
+        assert channel._wlan.attempts == []
+        assert state.get("runtime", "network", "wifi", "connected") is not True
+
+    asyncio.run(run_channel_while(channel, body))
+
+
 def test_ap_fallback_after_repeated_failures(monkeypatch):
     patch_timings(monkeypatch)
     monkeypatch.setattr(network_module, "AP_FALLBACK_ATTEMPTS", 2)

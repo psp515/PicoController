@@ -39,8 +39,14 @@ def compile_to_mpy(source, dest):
 
 def build():
     if os.path.exists(RELEASE_DIR):
-        shutil.rmtree(RELEASE_DIR)
-    os.makedirs(RELEASE_DIR)
+        for entry in os.listdir(RELEASE_DIR):
+            path = os.path.join(RELEASE_DIR, entry)
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+    else:
+        os.makedirs(RELEASE_DIR)
 
     compiled = 0
     copied = 0

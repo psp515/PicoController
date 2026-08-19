@@ -7,6 +7,7 @@ VERSION = "1.1.0"
 
 MODE_RANGES = {"brightness": (1, 100), "speed": (1, 100)}
 MODE_DIRECTIONS = ("forward", "backward")
+DEFAULT_MODES = ("normal", "mqtt-ssl")
 SEGMENT_LENGTH_MIN = 2
 LEDS_COUNT_MIN = 1
 
@@ -78,7 +79,20 @@ def _validate_leds(data, leds_patch, logger):
     return leds_patch
 
 
-VALIDATORS = {"mode": _validate_mode, "leds": _validate_leds}
+def _validate_system(data, system_patch, logger):
+    system_patch = dict(system_patch)
+    if "default_mode" in system_patch and system_patch["default_mode"] not in DEFAULT_MODES:
+        if logger:
+            logger.warning(
+                "state", "invalid default_mode {0}, ignoring", system_patch["default_mode"]
+            )
+        del system_patch["default_mode"]
+    if "boot_to_config" in system_patch:
+        system_patch["boot_to_config"] = bool(system_patch["boot_to_config"])
+    return system_patch
+
+
+VALIDATORS = {"mode": _validate_mode, "leds": _validate_leds, "system": _validate_system}
 
 
 class BaseState:

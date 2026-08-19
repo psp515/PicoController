@@ -66,6 +66,10 @@ name field — handy while connected to the setup network.
 
 ## Good to know
 
+- **Config mode is setup-network only.** After the ~5s button hold restarts
+  the device into [config mode](../setup.md#boot-modes), it opens the setup
+  network directly and never tries your configured Wi-Fi — so the dashboard
+  is always at the predictable `http://192.168.4.1/` while you reconfigure.
 - **Automatic reconnect.** If an established connection drops (router
   reboot, brief outage), the device keeps retrying with the *same*
   credentials until it's back online — no restart needed for that. A

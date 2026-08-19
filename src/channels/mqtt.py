@@ -10,6 +10,7 @@ from mqtt_as import MQTTClient, config as mqtt_config
 
 from channels.base import Channel
 from helpers.color import hex_to_rgb, rgb_to_hex
+from storage import CERTS_DIR
 
 WIFI_POLL_MS = 500
 RETRY_MS = 15000
@@ -18,7 +19,6 @@ NTP_RETRY_MS = 2000
 NTP_PORT = 123
 NTP_TIMEOUT_S = 2
 NTP_DELTA = 3155673600 if time.gmtime(0)[0] == 2000 else 2208988800
-CERTS_DIR = "certs"
 
 ALLOWED_SET_KEYS = {
     "mode": {"current", "brightness", "speed", "on", "color", "direction"},

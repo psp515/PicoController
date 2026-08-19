@@ -24,8 +24,10 @@ Button / MQTT  ──►  StateManager  ──►  Renderer  ──►  WS2812B 
                (debounced autosave)
 ```
 
-Everything runs in a single `uasyncio` event loop on one core. At boot,
-`main.py` loads the config, then starts the renderer, the autosave task, and
+Everything runs in a single `uasyncio` event loop on one core. `main.py` is
+just a thin starter (path setup + `asyncio.run`); the boot sequence lives in
+`src/application.py`. At boot,
+it loads the config, then starts the renderer, the autosave task, and
 every channel (Wi-Fi, button, MQTT) concurrently as independent
 tasks — nothing blocks waiting on anything else, so the strip lights up
 immediately using whatever was last saved.
@@ -149,7 +151,7 @@ two on an actual device — see [Manual setup](setup.md) for setting up
 
 `StateManager.update(patch)` only validates the *patch* it's given — it never
 re-checks values already sitting in `self._data`. That matters at boot:
-`main.py` builds `StateManager(storage.load())` directly from whatever's in
+`application.py` builds `StateManager(storage.load())` directly from whatever's in
 `config.json`, bypassing `update()` entirely, so a value that's out of range
 (hand-edited file, a value written by an older version of the code before a
 clamp existed, a corrupted write) would otherwise load verbatim and keep
@@ -159,7 +161,7 @@ happens to touch that exact field again.
 `StateManager.revalidate()` closes that gap: it runs every function in
 `VALIDATORS` against whatever's currently loaded (not a patch), corrects any
 section that comes back different, and marks `state.changed` so the fix gets
-autosaved back to `config.json` instead of recurring every boot. `main.py`
+autosaved back to `config.json` instead of recurring every boot. `application.py`
 calls it once, right after `state.set_logger(logger)` (so a correction is
 actually logged instead of happening silently before the logger exists):
 
@@ -185,6 +187,7 @@ means it's picked up at runtime, `reboot` means it's only read at startup,
 | `mqtt` | `enabled`, `server`, `port`, `user`, `password`, `base_topic`, `use_single_topic_for_state_update`, `ssl`, `ssl_params`, `certificate` (`validate`, `name`), `ntp_host` | live — session restarts | Disabled when `enabled` is `false`, `server` is empty, Wi-Fi is disabled, or (when `ssl` and `certificate.validate` are both true) the cert at `certs/<certificate.name>` isn't readable — fail-closed, no silent fallback to unverified TLS; `ssl: true` also triggers an NTP time sync (needed for TLS) before connecting; any change tears the session down (publishing `"offline"` on the old topic) and reconnects with the new config — see [Channel internals](contributing/channels.md#certificate-validation) |
 | `button` | `pin`, `enabled` | `pin` reboot; `enabled` live | GPIO for the cover button; `enabled: false` makes the channel ignore presses |
 | `webapi` | `wifi_access` | boot only | JSON API + Web UI server; read once at boot like `network.*` — `wifi_access: false` restricts the server to the device's setup AP only (never reachable over the configured Wi-Fi network), `true` (default) allows both — see [Channel internals](contributing/channels.md#web-api--web-ui-channel) |
+| `system` | `default_mode`, `boot_to_config` | `default_mode` reboot; `boot_to_config` boot only | Boot modes — see [Boot modes](setup.md#boot-modes). `default_mode` is `"normal"` (default) or `"mqtt-ssl"` (validated in `StateManager`, invalid values dropped); `"mqtt-ssl"` boots without the Web API/UI so TLS gets the RAM, and falls back to `normal` unless MQTT is enabled with a server and `ssl: true`. `boot_to_config` is a one-shot flag: set by the ~5s button hold (via `application.reboot_to_config`), forces the next boot into config mode, and is cleared and saved back to disk immediately at that boot — so the restart after it returns to `default_mode` |
 | `logging` | `enabled`, `level` | live | Disabled by default; `level` is one of `debug`/`info`/`warning`/`error`; both checked on every log call |
 | `watchdog` | `enabled` | reboot | Hardware watchdog (see below); disabled by default, enable on production devices; checked once at startup — the RP2040 watchdog can't be disarmed once running anyway |
 
@@ -194,7 +197,7 @@ like any other state, but never persisted to disk.
 
 ## Watchdog
 
-With `watchdog.enabled: true`, the heartbeat task in `main.py` arms the
+With `watchdog.enabled: true`, the heartbeat task in `src/application.py` arms the
 RP2040's hardware watchdog (`machine.WDT`, 8s timeout — the hardware maximum
 is ~8.3s) and feeds it every 500ms while toggling the onboard LED. If the
 event loop ever stalls — a blocking call that never returns, a crashed
